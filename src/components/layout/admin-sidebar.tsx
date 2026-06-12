@@ -1,0 +1,87 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard, Users, Briefcase, FolderOpen,
+  ClipboardCheck, Layers, ArrowDownCircle, BarChart3,
+  Settings, LogOut,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const NAV_ITEMS = [
+  { label: "Overview",      href: "/admin",                icon: LayoutDashboard, badge: 0 },
+  { label: "Contributors",  href: "/admin/contributors",   icon: Users,           badge: 0 },
+  { label: "Opportunities", href: "/admin/opportunities",  icon: Briefcase,       badge: 0 },
+  { label: "Projects",      href: "/admin/projects",       icon: FolderOpen,      badge: 0 },
+  { label: "Submissions",   href: "/admin/submissions",    icon: ClipboardCheck,  badge: 12 },
+  { label: "Offerwalls",    href: "/admin/offerwalls",     icon: Layers,          badge: 0 },
+  { label: "Withdrawals",   href: "/admin/withdrawals",    icon: ArrowDownCircle, badge: 5 },
+  { label: "Finances",      href: "/admin/finances",       icon: BarChart3,       badge: 0 },
+  { label: "Settings",      href: "/admin/settings",       icon: Settings,        badge: 0 },
+];
+
+export function AdminSidebar() {
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    if (href === "/admin") return pathname === "/admin";
+    return pathname.startsWith(href);
+  }
+
+  return (
+    <aside className="fixed left-0 top-0 bottom-0 w-sidebar-admin flex flex-col z-40 admin-sidebar-bg border-r border-[rgba(255,255,255,0.06)]">
+      {/* Logo */}
+      <div className="h-16 flex items-center px-5 border-b border-[rgba(255,255,255,0.06)] flex-shrink-0">
+        <Link href="/admin" className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-[var(--brand-500)] flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-sm">N</span>
+          </div>
+          <div>
+            <p className="font-bold text-sm text-white leading-none">NexGuild</p>
+            <p className="text-[10px] text-[var(--admin-sidebar-text-muted)] leading-none mt-0.5">Admin Panel</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin">
+        <ul className="space-y-0.5">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 h-10 px-3 rounded-md text-sm font-medium transition-colors duration-150",
+                    active
+                      ? "bg-[var(--admin-sidebar-item-active)] text-[var(--admin-sidebar-active-text)]"
+                      : "text-[var(--admin-sidebar-text)] hover:bg-[var(--admin-sidebar-item-hover)] hover:text-white"
+                  )}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge > 0 && (
+                    <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--brand-500)] text-white text-xs font-bold px-1">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Log Out */}
+      <div className="px-3 py-4 border-t border-[rgba(255,255,255,0.06)]">
+        <button className="flex items-center gap-3 h-10 px-3 w-full rounded-md text-sm font-medium text-[var(--admin-sidebar-text)] hover:text-white hover:bg-[var(--admin-sidebar-item-hover)] transition-colors">
+          <LogOut className="h-4 w-4 flex-shrink-0" />
+          Log Out
+        </button>
+      </div>
+    </aside>
+  );
+}
