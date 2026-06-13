@@ -67,11 +67,14 @@ function TypingHeadline() {
       style={{
         display: "block",
         width: "100%",
+        maxWidth: "100%",
         transition: "opacity 0.4s ease, transform 0.4s ease",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(-10px)",
+        whiteSpace: "normal",
         wordBreak: "break-word",
         overflowWrap: "break-word",
+        textAlign: "center",
       }}
       className="gradient-text"
     >
@@ -108,11 +111,14 @@ export default function EarnPage() {
             <h1
               className="font-extrabold tracking-tight leading-[1.1] text-white mb-6 text-center"
               style={{
-                fontSize: "clamp(32px, 5vw, 60px)",
-                overflow: "hidden",
+                fontSize: "clamp(32px, 5vw, 64px)",
+                width: "100%",
                 maxWidth: "100%",
+                overflow: "hidden",
+                whiteSpace: "normal",
                 wordBreak: "break-word",
-                overflowWrap: "break-word",
+                textAlign: "center",
+                padding: "0 20px",
               }}
             >
               <TypingHeadline />
