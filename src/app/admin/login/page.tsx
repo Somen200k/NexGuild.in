@@ -1,11 +1,53 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+"use client";
 
-export const metadata: Metadata = { title: "Admin Login" };
+import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminLoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) {
+      setError("Incorrect email or password.");
+      setLoading(false);
+      return;
+    }
+
+    // Verify admin role
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profile?.role !== "admin") {
+      await supabase.auth.signOut();
+      setError("Access denied. This account does not have admin privileges.");
+      setLoading(false);
+      return;
+    }
+
+    router.push("/admin");
+  }
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center">
       <div className="w-full max-w-sm">
@@ -13,7 +55,13 @@ export default function AdminLoginPage() {
           <h1 className="text-2xl font-bold text-white mb-1">Admin Access</h1>
           <p className="text-sm text-[var(--text-secondary)] mb-7">Sign in to the NexGuild admin panel</p>
 
-          <form className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="rounded-lg bg-[var(--danger-bg,#2d1515)] border border-[var(--danger-border,#7f1d1d)] px-4 py-3 text-sm text-[var(--danger-text)]">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                 Email
@@ -21,6 +69,8 @@ export default function AdminLoginPage() {
               <input
                 type="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@nexguild.in"
                 className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-white text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent transition-colors"
               />
@@ -32,23 +82,26 @@ export default function AdminLoginPage() {
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full h-10 px-3 pr-10 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-white text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent transition-colors"
                 />
                 <button
                   type="button"
+                  onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                  aria-label="Show password"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  <Eye className="h-4 w-4" />
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full mt-1">
-              Sign In
+            <Button type="submit" size="lg" className="w-full mt-1" disabled={loading}>
+              {loading ? "Signing in…" : "Sign In"}
             </Button>
           </form>
 
