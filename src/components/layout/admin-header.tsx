@@ -2,7 +2,6 @@
 
 import { Search, ChevronDown } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { usePathname } from "next/navigation";
 
 const BREADCRUMBS: Record<string, string[]> = {
@@ -46,8 +45,6 @@ export function AdminHeader() {
             className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
           />
         </div>
-
-        <ThemeToggle />
 
         {/* Admin user */}
         <button className="flex items-center gap-2 h-9 px-2 rounded-md hover:bg-[var(--surface-subtle)] transition-colors">

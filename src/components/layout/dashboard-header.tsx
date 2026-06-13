@@ -2,7 +2,6 @@
 
 import { Bell, ChevronDown } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { usePathname } from "next/navigation";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -25,8 +24,6 @@ export function DashboardHeader() {
       <h1 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h1>
 
       <div className="flex items-center gap-2">
-        <ThemeToggle />
-
         {/* Notification Bell */}
         <button className="relative h-9 w-9 flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)] transition-colors">
           <Bell className="h-5 w-5" />
