@@ -58,7 +58,19 @@ CREATE TABLE withdrawals (
   requested_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ── 2. Row Level Security ─────────────────────────────────────
+-- ── 2. Table-level grants ─────────────────────────────────────
+-- Raw SQL creates skip the auto-grants the Supabase dashboard adds.
+-- service_role bypasses RLS but still needs GRANT at the table level.
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT ON public.profiles    TO authenticated, service_role;
+GRANT INSERT, UPDATE ON public.profiles TO authenticated, service_role;
+GRANT SELECT ON public.tasks       TO anon, authenticated, service_role;
+GRANT ALL    ON public.tasks       TO service_role;
+GRANT ALL    ON public.earnings    TO authenticated, service_role;
+GRANT ALL    ON public.withdrawals TO authenticated, service_role;
+
+-- ── 3. Row Level Security ─────────────────────────────────────
 
 ALTER TABLE profiles    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks       ENABLE ROW LEVEL SECURITY;
@@ -129,7 +141,7 @@ CREATE POLICY "Admins can manage withdrawals"
     )
   );
 
--- ── 3. Auto-create profile on signup ─────────────────────────
+-- ── 4. Auto-create profile on signup ─────────────────────────
 -- This trigger fires when a new user is created in auth.users.
 -- It reads full_name and country from the signup metadata and
 -- generates a unique referral code automatically.
@@ -168,5 +180,5 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
--- ── 4. Grant admin role (run manually after creating the user) ─
+-- ── 5. Grant admin role (run manually after creating the user) ─
 -- UPDATE profiles SET role = 'admin' WHERE email = 'your@email.com';
