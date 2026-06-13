@@ -5,7 +5,9 @@
       "Bash(rm -f \"src/app/\\(public\\)/for-organizations/page.tsx\")",
       "Bash(rm -f \"src/app/\\(public\\)/about/page.tsx\")",
       "Bash(rm -f \"src/app/\\(public\\)/contact/page.tsx\")",
-      "Bash(rm -f \"src/app/\\(public\\)/earn/page.tsx\")"
+      "Bash(rm -f \"src/app/\\(public\\)/earn/page.tsx\")",
+      "PowerShell(cd \"C:\\\\Users\\\\somen\\\\NexGuild.in\"; git add src/app/page.tsx src/app/\\(gold\\)/client/ src/app/\\(gold\\)/services/ src/app/\\(gold\\)/layout.tsx src/app/\\(gold\\)/contact/page.tsx src/app/\\(teal\\)/earn/page.tsx src/app/\\(teal\\)/how-it-works/page.tsx src/app/\\(teal\\)/layout.tsx src/app/\\(teal\\)/opportunities/page.tsx src/app/\\(teal\\)/faq/ src/app/globals.css src/app/\\(auth\\)/signup/page.tsx src/app/dashboard/page.tsx src/app/dashboard/tasks/ src/app/admin/announcements/ src/app/admin/assignments/ src/app/admin/tasks/ src/components/layout/client-header.tsx src/components/layout/contributor-header.tsx src/components/layout/public-footer.tsx; git status --short)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

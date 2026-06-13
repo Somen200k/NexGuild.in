@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { NexGuildLogo } from "@/components/ui/nexguild-logo";
 
 const NAV_LINKS = [
+  { label: "Home",         href: "/" },
   { label: "Services",     href: "/services" },
   { label: "How It Works", href: "/client/how-it-works" },
   { label: "About",        href: "/about" },
@@ -42,15 +43,9 @@ export function ClientHeader() {
       >
         <div className="mx-auto max-w-container px-6 h-full flex items-center justify-between">
 
-          {/* Logo + Home link */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Logo */}
+          <div className="flex items-center flex-shrink-0">
             <NexGuildLogo theme="gold" />
-            <Link
-              href="/"
-              className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-white/30 hover:text-[#F59E0B] transition-colors"
-            >
-              ← Home
-            </Link>
           </div>
 
           {/* Desktop Nav */}
@@ -126,16 +121,6 @@ export function ClientHeader() {
         </div>
 
         <nav className="flex-1 px-4 py-4 overflow-y-auto">
-          {/* Back to Home */}
-          <Link
-            href="/"
-            className="flex items-center h-10 px-3 rounded-md text-sm text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors mb-2"
-          >
-            ← Back to Home
-          </Link>
-
-          <div className="h-px bg-[#222222] mb-2" />
-
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
