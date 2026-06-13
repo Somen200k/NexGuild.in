@@ -8,6 +8,7 @@ import {
   Settings, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NexGuildLogo } from "@/components/ui/nexguild-logo";
 
 const NAV_ITEMS = [
   { label: "Overview",      href: "/admin",                icon: LayoutDashboard, badge: 0 },
@@ -32,16 +33,8 @@ export function AdminSidebar() {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-sidebar-admin flex flex-col z-40 admin-sidebar-bg border-r border-[rgba(255,255,255,0.06)]">
       {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-[rgba(255,255,255,0.06)] flex-shrink-0">
-        <Link href="/admin" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[var(--brand-500)] flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">N</span>
-          </div>
-          <div>
-            <p className="font-bold text-sm text-white leading-none">NexGuild</p>
-            <p className="text-[10px] text-[var(--admin-sidebar-text-muted)] leading-none mt-0.5">Admin Panel</p>
-          </div>
-        </Link>
+      <div className="h-16 flex items-center px-4 border-b border-[rgba(255,255,255,0.06)] flex-shrink-0">
+        <NexGuildLogo theme="gold" />
       </div>
 
       {/* Nav */}

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NexGuildLogo } from "@/components/ui/nexguild-logo";
 
 const NAV_LINKS = [
   { label: "Opportunities", href: "/opportunities" },
@@ -41,15 +42,7 @@ export function ContributorHeader() {
         <div className="mx-auto max-w-container px-6 h-full flex items-center justify-between">
 
           {/* Logo — links to landing page */}
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
-            <span className="font-bold text-xl tracking-tight leading-none select-none">
-              <span className="text-white">Nex</span>
-              <span className="text-[#14b8a6] transition-colors duration-200 group-hover:text-[#5eead4]">Guild</span>
-            </span>
-            <span className="hidden sm:inline-flex text-[10px] text-white/25 group-hover:text-white/50 transition-colors leading-none mt-0.5">
-              ← Home
-            </span>
-          </Link>
+          <NexGuildLogo theme="teal" />
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-1">
@@ -120,10 +113,7 @@ export function ContributorHeader() {
         )}
       >
         <div className="flex items-center justify-between px-6 h-16 border-b border-[#1e3a5f]">
-          <Link href="/" className="font-bold text-xl" onClick={() => setMobileOpen(false)}>
-            <span className="text-white">Nex</span>
-            <span className="text-[#14b8a6]">Guild</span>
-          </Link>
+          <NexGuildLogo theme="teal" />
           <button
             onClick={() => setMobileOpen(false)}
             className="h-9 w-9 flex items-center justify-center rounded-md text-white/60 hover:bg-white/5"

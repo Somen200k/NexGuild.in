@@ -7,6 +7,7 @@ import {
   TrendingUp, Wallet, User, Settings, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NexGuildLogo } from "@/components/ui/nexguild-logo";
 
 const NAV_ITEMS = [
   { label: "Dashboard",      href: "/dashboard",              icon: LayoutDashboard },
@@ -33,13 +34,8 @@ export function DashboardSidebar() {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-sidebar flex flex-col z-40 sidebar-bg border-r border-[var(--border-default)]">
       {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-[var(--border-default)] flex-shrink-0">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[var(--brand-500)] flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">N</span>
-          </div>
-          <span className="font-bold text-base text-[var(--text-primary)] tracking-tight">NexGuild</span>
-        </Link>
+      <div className="h-16 flex items-center px-4 border-b border-[var(--border-default)] flex-shrink-0">
+        <NexGuildLogo theme="teal" />
       </div>
 
       {/* Main Nav */}
