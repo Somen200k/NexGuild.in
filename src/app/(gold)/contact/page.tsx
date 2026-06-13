@@ -1,11 +1,22 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/ui/fade-in";
-import { Mail, Clock } from "lucide-react";
+import { Mail, Clock, MessageCircle, Linkedin } from "lucide-react";
 
-export const metadata: Metadata = { title: "Contact" };
+export const metadata: Metadata = { title: "Contact — NexGuild" };
 
-const SUBJECTS = ["Organization Inquiry", "General Question", "Support", "Partnership"];
+const PROJECT_TYPES = [
+  "Audio Recording",
+  "Transcription",
+  "Data Annotation",
+  "App Testing",
+  "Game Testing",
+  "Surveys",
+  "Social Media Tasks",
+  "Web Research",
+  "Data Collection",
+  "Other",
+];
 
 export default function ContactPage() {
   return (
@@ -18,7 +29,7 @@ export default function ContactPage() {
             <p className="text-[var(--brand-500)] text-sm font-semibold uppercase tracking-widest mb-3">Contact</p>
             <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 text-balance">Contact Us</h1>
             <p className="text-lg text-[var(--text-secondary)] max-w-xl leading-relaxed">
-              Whether you are an organization looking to work with us or have a general question, we are happy to help.
+              Whether you are an organization with a project or have a general question — we are happy to help.
             </p>
           </FadeIn>
         </div>
@@ -61,7 +72,7 @@ export default function ContactPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                      Organization <span className="text-[var(--text-muted)] font-normal">(optional)</span>
+                      Organization / Company <span className="text-[var(--text-muted)] font-normal">(optional)</span>
                     </label>
                     <input
                       type="text"
@@ -72,14 +83,14 @@ export default function ContactPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                      Subject <span className="text-[var(--danger-text)]">*</span>
+                      Project Type <span className="text-[var(--danger-text)]">*</span>
                     </label>
                     <select
                       required
                       className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)] focus:border-transparent transition-colors"
                     >
-                      <option value="">Select a subject</option>
-                      {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      <option value="">Select a project type</option>
+                      {PROJECT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
 
@@ -90,7 +101,7 @@ export default function ContactPage() {
                     <textarea
                       required
                       rows={5}
-                      placeholder="Tell us how we can help..."
+                      placeholder="Describe your project — task type, approximate volume, deadline, and any special requirements..."
                       className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-white text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)] focus:border-transparent transition-colors resize-y"
                     />
                   </div>
@@ -103,18 +114,56 @@ export default function ContactPage() {
             </div>
 
             {/* Info Panel */}
-            <FadeIn delay={100} className="space-y-5">
+            <FadeIn delay={100} className="space-y-4">
+              <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-6 card-hover">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-lg bg-[var(--brand-100)] flex items-center justify-center">
+                    <MessageCircle className="h-4 w-4 text-[var(--brand-500)]" />
+                  </div>
+                  <h3 className="font-semibold text-white">WhatsApp</h3>
+                </div>
+                <p className="text-sm text-[var(--text-secondary)] mb-3">Fastest response. Reach us directly on WhatsApp.</p>
+                <a
+                  href="https://wa.me/message/nexguild"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[var(--brand-500)] hover:text-[var(--brand-400)] transition-colors"
+                >
+                  Message on WhatsApp →
+                </a>
+              </div>
+
               <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-6 card-hover">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-9 w-9 rounded-lg bg-[var(--brand-100)] flex items-center justify-center">
                     <Mail className="h-4 w-4 text-[var(--brand-500)]" />
                   </div>
-                  <h3 className="font-semibold text-white">Email Us Directly</h3>
+                  <h3 className="font-semibold text-white">Email</h3>
                 </div>
-                <a href="mailto:hello@nexguild.com" className="text-sm text-[var(--brand-500)] hover:text-[var(--brand-400)] transition-colors">
-                  hello@nexguild.com
+                <a
+                  href="mailto:hello@nexguild.in"
+                  className="text-sm text-[var(--brand-500)] hover:text-[var(--brand-400)] transition-colors"
+                >
+                  hello@nexguild.in
                 </a>
                 <p className="text-xs text-[var(--text-muted)] mt-1">For all inquiries</p>
+              </div>
+
+              <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-6 card-hover">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-lg bg-[var(--brand-100)] flex items-center justify-center">
+                    <Linkedin className="h-4 w-4 text-[var(--brand-500)]" />
+                  </div>
+                  <h3 className="font-semibold text-white">LinkedIn</h3>
+                </div>
+                <a
+                  href="https://linkedin.com/company/nexguild"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[var(--brand-500)] hover:text-[var(--brand-400)] transition-colors"
+                >
+                  linkedin.com/company/nexguild →
+                </a>
               </div>
 
               <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-6 card-hover">
@@ -125,8 +174,8 @@ export default function ContactPage() {
                   <h3 className="font-semibold text-white">Response Time</h3>
                 </div>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  We respond to all inquiries within 1 business day. Organization inquiries may take up to
-                  2 business days as we review your requirements.
+                  We respond within 24 hours. Organization project inquiries may take up to 2 business days
+                  as we review requirements carefully.
                 </p>
               </div>
             </FadeIn>

@@ -3,12 +3,24 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 
-export const metadata: Metadata = { title: "Create Account" };
+export const metadata: Metadata = { title: "Create Account — NexGuild" };
 
 const COUNTRIES = [
-  "United States", "United Kingdom", "Canada", "Australia", "India",
-  "Germany", "France", "Brazil", "Nigeria", "Philippines",
-  "Bangladesh", "Pakistan", "Indonesia", "Mexico", "South Africa",
+  "India",
+  "United States",
+  "United Kingdom",
+  "Canada",
+  "Australia",
+  "Germany",
+  "France",
+  "Brazil",
+  "Nigeria",
+  "Philippines",
+  "Bangladesh",
+  "Pakistan",
+  "Indonesia",
+  "Mexico",
+  "South Africa",
   "Other",
 ];
 
@@ -55,7 +67,7 @@ export default function SignupPage() {
                 placeholder="At least 8 characters"
                 className="w-full h-10 px-3 pr-10 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-white text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent transition-colors"
               />
-              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                 <Eye className="h-4 w-4" />
               </button>
             </div>
@@ -79,11 +91,22 @@ export default function SignupPage() {
             </label>
             <select
               required
+              defaultValue="India"
               className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent transition-colors"
             >
-              <option value="">Select your country</option>
               {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+              Referral Code <span className="text-[var(--text-muted)] font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Enter referral code if you have one"
+              className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-white text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent transition-colors"
+            />
           </div>
 
           <div className="flex items-start gap-3 pt-1">
