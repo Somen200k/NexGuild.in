@@ -76,9 +76,9 @@ export default function AdminSettingsPage() {
           <h2 className="font-semibold text-[var(--text-primary)]">Withdrawal Methods</h2>
         </div>
         {[
-          { label: "PayPal",       enabled: true },
-          { label: "Bitcoin",      enabled: true },
-          { label: "USDT (TRC20)", enabled: true },
+          { label: "UPI",           enabled: true },
+          { label: "Bank Transfer", enabled: true },
+          { label: "PayPal",        enabled: true },
         ].map((m) => (
           <div key={m.label} className="px-6 py-4 flex items-center justify-between gap-4">
             <p className="text-sm font-medium text-[var(--text-primary)]">{m.label}</p>

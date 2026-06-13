@@ -1,9 +1,6 @@
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
 import { Camera } from "lucide-react";
-
-const SKILLS = ["Writing", "Data Entry", "Translation", "Research"];
 
 export default function ProfilePage() {
   return (
@@ -17,18 +14,16 @@ export default function ProfilePage() {
       <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] p-6">
         <div className="flex items-start gap-5">
           <div className="relative flex-shrink-0">
-            <Avatar name="Alex Johnson" size="lg" />
+            <Avatar name="?" size="lg" />
             <button className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-[var(--brand-500)] flex items-center justify-center border-2 border-[var(--surface-card)]">
               <Camera className="h-3.5 w-3.5 text-white" />
             </button>
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-[var(--text-primary)]">Alex Johnson</h2>
-            <p className="text-sm text-[var(--text-secondary)]">alex.johnson@example.com</p>
-            <p className="text-sm text-[var(--text-secondary)]">🇺🇸 United States</p>
-            <div className="flex items-center gap-4 mt-3 text-sm">
-              <span className="text-[var(--text-muted)]">Joined <span className="text-[var(--text-primary)] font-medium">Jan 2025</span></span>
-              <span className="text-[var(--text-muted)]">Earned <span className="text-[var(--text-primary)] font-medium">{formatCurrency(214.60)}</span></span>
+            <h2 className="text-xl font-bold text-[var(--text-primary)]">—</h2>
+            <p className="text-sm text-[var(--text-secondary)]">—</p>
+            <div className="mt-3">
+              <Button size="sm" variant="secondary">Edit Profile</Button>
             </div>
           </div>
         </div>
@@ -38,15 +33,6 @@ export default function ProfilePage() {
       <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] p-6">
         <h3 className="font-semibold text-[var(--text-primary)] mb-4">Skills</h3>
         <div className="flex flex-wrap gap-2 mb-4">
-          {SKILLS.map((skill) => (
-            <span
-              key={skill}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--brand-50)] text-[var(--brand-700)] text-sm font-medium"
-            >
-              {skill}
-              <button className="text-[var(--brand-400)] hover:text-[var(--brand-700)] transition-colors" aria-label={`Remove ${skill}`}>×</button>
-            </span>
-          ))}
           <button className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-dashed border-[var(--border-default)] text-sm text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] transition-colors">
             + Add skill
           </button>
@@ -54,7 +40,7 @@ export default function ProfilePage() {
         <p className="text-xs text-[var(--text-muted)]">Skills help match you with relevant project opportunities.</p>
       </div>
 
-      {/* Reputation — placeholder */}
+      {/* Reputation */}
       <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-[var(--text-primary)]">Reputation</h3>

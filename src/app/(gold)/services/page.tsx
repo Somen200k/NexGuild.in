@@ -87,7 +87,7 @@ export default function ServicesPage() {
                   <p className="text-sm text-[var(--text-secondary)]">{group.desc}</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {group.services.map((svc, i) => (
+                  {group.services.map((svc) => (
                     <div
                       key={svc.label}
                       className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] p-5 h-full card-hover"
@@ -136,7 +136,7 @@ export default function ServicesPage() {
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
                 <Button asChild size="lg">
-                  <a href="https://wa.me/message/nexguild" target="_blank" rel="noopener noreferrer">
+                  <a href="https://wa.me/919382008513" target="_blank" rel="noopener noreferrer">
                     Contact on WhatsApp
                   </a>
                 </Button>

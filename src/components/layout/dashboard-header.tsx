@@ -35,10 +35,7 @@ export function DashboardHeader() {
 
         {/* User Menu */}
         <button className="flex items-center gap-2 h-9 px-2 rounded-md hover:bg-[var(--surface-subtle)] transition-colors">
-          <Avatar name="Alex Johnson" size="sm" />
-          <span className="hidden sm:block text-sm font-medium text-[var(--text-primary)] max-w-[120px] truncate">
-            Alex Johnson
-          </span>
+          <Avatar name="?" size="sm" />
           <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />
         </button>
       </div>

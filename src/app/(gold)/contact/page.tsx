@@ -124,7 +124,7 @@ export default function ContactPage() {
                 </div>
                 <p className="text-sm text-[var(--text-secondary)] mb-3">Fastest response. Reach us directly on WhatsApp.</p>
                 <a
-                  href="https://wa.me/message/nexguild"
+                  href="https://wa.me/919382008513"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[var(--brand-500)] hover:text-[var(--brand-400)] transition-colors"

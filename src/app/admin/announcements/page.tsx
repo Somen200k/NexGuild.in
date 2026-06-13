@@ -5,11 +5,7 @@ import { Bell, Plus } from "lucide-react";
 
 export const metadata: Metadata = { title: "Announcements — Admin" };
 
-const PAST_ANNOUNCEMENTS = [
-  { title: "New Task Type Added: Audio Recording", body: "Audio recording tasks are now live. Check the Tasks section to browse available projects.", date: "Jun 10, 2025", audience: "All Contributors" },
-  { title: "Withdrawal Processing Update",         body: "Withdrawals are now processed every Tuesday and Friday. Please allow 1–3 business days.", date: "Jun 5, 2025",  audience: "All Contributors" },
-  { title: "Welcome to NexGuild Beta",             body: "Thank you for joining our early contributor community. New tasks and features are being added weekly.", date: "May 28, 2025", audience: "All Contributors" },
-];
+const PAST_ANNOUNCEMENTS: { title: string; body: string; date: string; audience: string }[] = [];
 
 const inputClass = "w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent transition-colors";
 const labelClass = "block text-sm font-medium text-[var(--text-secondary)] mb-1.5";
@@ -64,20 +60,26 @@ export default function AdminAnnouncementsPage() {
       {/* Past Announcements */}
       <section>
         <h2 className="font-semibold text-[var(--text-primary)] mb-4">Past Announcements</h2>
-        <div className="space-y-3">
-          {PAST_ANNOUNCEMENTS.map((ann) => (
-            <div key={ann.title} className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] p-5">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <h3 className="font-medium text-[var(--text-primary)] text-sm">{ann.title}</h3>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Badge variant="neutral">{ann.audience}</Badge>
-                  <span className="text-xs text-[var(--text-muted)]">{ann.date}</span>
+        {PAST_ANNOUNCEMENTS.length === 0 ? (
+          <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] py-10 text-center">
+            <p className="text-sm text-[var(--text-muted)]">No announcements sent yet</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {PAST_ANNOUNCEMENTS.map((ann) => (
+              <div key={ann.title} className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] p-5">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="font-medium text-[var(--text-primary)] text-sm">{ann.title}</h3>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge variant="neutral">{ann.audience}</Badge>
+                    <span className="text-xs text-[var(--text-muted)]">{ann.date}</span>
+                  </div>
                 </div>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{ann.body}</p>
               </div>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{ann.body}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

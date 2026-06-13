@@ -44,7 +44,7 @@ export function PublicFooter() {
                 </svg>
               </a>
               <a
-                href="https://wa.me/message/nexguild"
+                href="https://wa.me/919382008513"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="WhatsApp"
@@ -119,7 +119,7 @@ export function PublicFooter() {
               </li>
               <li>
                 <a
-                  href="https://wa.me/message/nexguild"
+                  href="https://wa.me/919382008513"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[var(--text-secondary)] hover:text-[#25D366] transition-colors"

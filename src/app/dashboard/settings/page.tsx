@@ -33,8 +33,9 @@ export default function SettingsPage() {
           <h2 className="font-semibold text-[var(--text-primary)]">Payout Methods</h2>
         </div>
         {[
-          { label: "PayPal", value: "alex.johnson@paypal.com" },
-          { label: "Cryptocurrency", value: "Not connected" },
+          { label: "UPI",           value: "Not connected" },
+          { label: "Bank Transfer", value: "Not connected" },
+          { label: "PayPal",        value: "Not connected" },
         ].map((item) => (
           <div key={item.label} className="px-6 py-4 flex items-center justify-between gap-4">
             <div>

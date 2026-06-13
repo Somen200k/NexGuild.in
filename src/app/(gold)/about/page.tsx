@@ -81,26 +81,31 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Team */}
+      {/* Contact CTA */}
       <section className="bg-[var(--surface-card)] py-16 px-6">
         <div className="mx-auto max-w-prose">
           <FadeIn>
-            <h2 className="text-2xl font-bold text-white mb-6">The Team</h2>
-            <p className="text-[var(--text-secondary)] leading-relaxed mb-8">
-              NexGuild is a small, focused team building in public. We will introduce our team properly once we
-              are ready. Until then, we let the platform speak for itself.
+            <h2 className="text-2xl font-bold text-white mb-6">Get in Touch</h2>
+            <p className="text-[var(--text-secondary)] leading-relaxed mb-6">
+              Have a question, a project idea, or feedback about the platform? We read every message and respond within 24 hours.
             </p>
+            <div className="flex flex-wrap gap-4">
+              <a
+                href="mailto:hello@nexguild.in"
+                className="inline-flex items-center gap-2 h-10 px-5 rounded-lg border border-[var(--brand-500)] text-[var(--brand-500)] text-sm font-medium hover:bg-[var(--brand-100)] transition-colors"
+              >
+                hello@nexguild.in
+              </a>
+              <a
+                href="https://wa.me/919382008513"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-[#25D366] text-white text-sm font-medium hover:bg-[#20bb5a] transition-colors"
+              >
+                WhatsApp Us
+              </a>
+            </div>
           </FadeIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {["Platform Lead", "Contributor Operations", "Product Design", "Technical Lead"].map((role, i) => (
-              <FadeIn key={role} delay={i * 60}>
-                <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-subtle)] px-5 py-4 card-hover">
-                  <div className="h-1.5 w-6 rounded-full bg-[var(--brand-500)] mb-3" />
-                  <p className="font-medium text-white">{role}</p>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
         </div>
       </section>
     </>

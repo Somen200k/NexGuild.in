@@ -265,7 +265,7 @@ export default function ClientPage() {
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-4">
                   <a
-                    href="https://wa.me/message/nexguild"
+                    href="https://wa.me/919382008513"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="h-12 px-8 inline-flex items-center gap-2 rounded-xl bg-[#25D366] text-white text-base font-semibold hover:bg-[#20bb5a] transition-all duration-200 hover:scale-105"

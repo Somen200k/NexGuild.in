@@ -390,11 +390,39 @@ export default function LandingPage() {
 
         /* ── Mobile ───────────────────────────────────────────── */
         @media (max-width: 700px) {
-          .split { flex-direction: column; }
-          .panel { flex-basis: 50% !important; transition: none; }
-          .panel.hov, .panel.shrink { flex-basis: 50% !important; }
+          /* Root scrolls on mobile — no fixed viewport clipping */
+          .root {
+            display: flex; flex-direction: column;
+            height: auto; min-height: 100dvh;
+            overflow-x: hidden; overflow-y: auto;
+          }
+
+          /* Logo flows in document — no absolute overlap */
+          .logo-wrap {
+            position: relative; top: auto; left: auto; right: auto;
+            flex-shrink: 0; padding: 10px 0 6px;
+          }
+
+          /* Split stacks naturally, not height-constrained */
+          .split { display: flex; flex-direction: column; flex: none; }
+
+          /* Each panel is fully independent — min 50vh, grows with content */
+          .panel {
+            flex-basis: auto !important;
+            flex-shrink: 0 !important;
+            flex-grow: 0 !important;
+            min-height: 50vh;
+            height: auto;
+            overflow: hidden;
+            transition: none;
+          }
+          .panel.hov, .panel.shrink { flex-basis: auto !important; }
           .panel.hov .body { transform: none; }
 
+          /* Content padding — top and bottom breathing room */
+          .body { padding: 32px 20px 36px; }
+
+          /* Horizontal divider */
           .div-wrap { width: 100%; height: 1px; flex-direction: row; }
           .div-ln {
             flex: 1; height: 1px; width: auto;
@@ -406,10 +434,8 @@ export default function LandingPage() {
           .sub  { font-size: 12px; max-width: 240px; margin-bottom: 20px; }
           .tag  { font-size: 10px; margin-bottom: 14px; }
           .btn  { height: 44px; font-size: 14px; }
-          .body { padding: 14px 18px; }
           .acts { gap: 10px; margin-bottom: 12px; }
           .note { font-size: 10px; }
-          .logo-wrap { padding-top: 8px; }
           canvas { display: none; }
         }
         @media (max-width: 380px) {

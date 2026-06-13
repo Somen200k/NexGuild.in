@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 
 const PROVIDERS = [
-  { name: "CPX Research",  slug: "cpx",     active: true,  share: 70, earnings: 842.40 },
-  { name: "Lootably",      slug: "lootably",active: true,  share: 68, earnings: 421.80 },
+  { name: "CPX Research",  slug: "cpx",     active: false, share: 70, earnings: 0 },
+  { name: "Lootably",      slug: "lootably",active: false, share: 68, earnings: 0 },
   { name: "AdGem",         slug: "adgem",   active: false, share: 65, earnings: 0 },
   { name: "Theorem Reach", slug: "theorem", active: false, share: 72, earnings: 0 },
   { name: "BitLabs",       slug: "bitlabs", active: false, share: 70, earnings: 0 },
