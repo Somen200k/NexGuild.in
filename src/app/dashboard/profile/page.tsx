@@ -3,49 +3,100 @@
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Camera, Coins } from "lucide-react";
+import { Camera, Coins, X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface Profile {
   full_name: string | null;
   country: string | null;
+  phone: string | null;
   joined_at: string | null;
   nexcoins: number;
 }
+
+const COUNTRIES = [
+  "India", "United States", "United Kingdom", "Canada", "Australia",
+  "Germany", "France", "Singapore", "UAE", "Bangladesh", "Pakistan",
+  "Sri Lanka", "Nepal", "Philippines", "Other",
+];
 
 export default function ProfilePage() {
   const [email, setEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editCountry, setEditCountry] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       setEmail(user.email ?? null);
+      setUserId(user.id);
 
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, country, joined_at, nexcoins")
+        .select("full_name, country, phone, joined_at, nexcoins")
         .eq("id", user.id)
         .single();
 
-      setProfile(data ?? { full_name: null, country: null, joined_at: null, nexcoins: 0 });
+      setProfile(data ?? { full_name: null, country: null, phone: null, joined_at: null, nexcoins: 0 });
       setLoading(false);
     }
     fetchProfile();
   }, []);
 
+  function openEdit() {
+    setEditName(profile?.full_name ?? "");
+    setEditCountry(profile?.country ?? "");
+    setEditPhone(profile?.phone ?? "");
+    setSaveError(null);
+    setShowEdit(true);
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId) return;
+    setSaving(true);
+    setSaveError(null);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: editName.trim() || null,
+        country: editCountry || null,
+        phone: editPhone.trim() || null,
+      })
+      .eq("id", userId);
+
+    if (error) {
+      setSaveError("Failed to save. Please try again.");
+      setSaving(false);
+      return;
+    }
+
+    setProfile((prev) => prev
+      ? { ...prev, full_name: editName.trim() || null, country: editCountry || null, phone: editPhone.trim() || null }
+      : prev
+    );
+    setSaving(false);
+    setShowEdit(false);
+  }
+
   const displayName = profile?.full_name ?? email ?? "—";
   const initials = profile?.full_name
     ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
-    : "?";
+    : (email?.[0]?.toUpperCase() ?? "?");
 
   const joinedDate = profile?.joined_at
-    ? new Date(profile.joined_at).toLocaleDateString("en-IN", {
-        day: "numeric", month: "long", year: "numeric",
-      })
+    ? new Date(profile.joined_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
     : "—";
 
   return (
@@ -72,7 +123,9 @@ export default function ProfilePage() {
               {loading ? "—" : (email ?? "—")}
             </p>
             <div className="mt-3">
-              <Button size="sm" variant="secondary" disabled>Edit Profile</Button>
+              <Button size="sm" variant="secondary" onClick={openEdit} disabled={loading}>
+                Edit Profile
+              </Button>
             </div>
           </div>
         </div>
@@ -84,9 +137,10 @@ export default function ProfilePage() {
           <h3 className="font-semibold text-[var(--text-primary)]">Account Details</h3>
         </div>
         {[
-          { label: "Full Name", value: loading ? "Loading…" : (profile?.full_name ?? "—") },
-          { label: "Email",     value: loading ? "Loading…" : (email ?? "—") },
-          { label: "Country",   value: loading ? "Loading…" : (profile?.country ?? "—") },
+          { label: "Full Name",    value: loading ? "Loading…" : (profile?.full_name ?? "Not set") },
+          { label: "Email",        value: loading ? "Loading…" : (email ?? "—") },
+          { label: "Country",      value: loading ? "Loading…" : (profile?.country ?? "Not set") },
+          { label: "Phone",        value: loading ? "Loading…" : (profile?.phone ?? "Not set") },
           { label: "Member Since", value: loading ? "Loading…" : joinedDate },
         ].map((row) => (
           <div key={row.label} className="px-6 py-4 flex items-center justify-between gap-4">
@@ -129,6 +183,75 @@ export default function ProfilePage() {
           ))}
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEdit && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60">
+          <div className="w-full max-w-md bg-[var(--surface-card)] rounded-xl border border-[var(--border-default)] p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Edit Profile</h2>
+              <button onClick={() => setShowEdit(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Your full name"
+                  className="w-full h-10 px-3 rounded-md border border-[var(--border-strong)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
+                  Country
+                </label>
+                <select
+                  value={editCountry}
+                  onChange={(e) => setEditCountry(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-[var(--border-strong)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
+                >
+                  <option value="">Select country</option>
+                  {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
+                  Phone <span className="text-[var(--text-muted)] font-normal">(optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="+91 99999 00000"
+                  className="w-full h-10 px-3 rounded-md border border-[var(--border-strong)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
+                />
+              </div>
+
+              {saveError && (
+                <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md">{saveError}</p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowEdit(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" disabled={saving}>
+                  {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
