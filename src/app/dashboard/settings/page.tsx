@@ -151,7 +151,7 @@ export default function SettingsPage() {
                   transform: notifs[item.key] ? "translateX(22px)" : "translateX(2px)",
                   transition: "transform 0.2s ease",
                 }}
-                className="absolute top-[2px] h-5 w-5 rounded-full bg-white shadow-md"
+                className="absolute top-[2px] left-0 h-5 w-5 rounded-full bg-white shadow-md"
               />
             </button>
           </div>

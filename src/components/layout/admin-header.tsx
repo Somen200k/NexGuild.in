@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 const BREADCRUMBS: Record<string, string[]> = {
   "/admin":                 ["Overview"],
   "/admin/contributors":    ["Contributors"],
-  "/admin/opportunities":   ["Opportunities"],
   "/admin/projects":        ["Projects"],
   "/admin/submissions":     ["Submissions"],
   "/admin/offerwalls":      ["Offerwalls"],

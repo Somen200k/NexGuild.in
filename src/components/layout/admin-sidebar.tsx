@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, Users, Briefcase, FolderOpen,
+  LayoutDashboard, Users, FolderOpen,
   ClipboardCheck, Layers, Gift, BarChart3,
   Settings, LogOut, ClipboardList,
 } from "lucide-react";
@@ -38,7 +38,6 @@ export function AdminSidebar() {
     { label: "Overview",      href: "/admin",                icon: LayoutDashboard, badge: 0 },
     { label: "Contributors",  href: "/admin/contributors",   icon: Users,           badge: 0 },
     { label: "Tasks",         href: "/admin/tasks",          icon: ClipboardList,   badge: 0 },
-    { label: "Opportunities", href: "/admin/opportunities",  icon: Briefcase,       badge: 0 },
     { label: "Projects",      href: "/admin/projects",       icon: FolderOpen,      badge: 0 },
     { label: "Submissions",   href: "/admin/submissions",    icon: ClipboardCheck,  badge: submissionCount },
     { label: "Offerwalls",    href: "/admin/offerwalls",     icon: Layers,          badge: 0 },
