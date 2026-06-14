@@ -1,8 +1,66 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, Search } from "lucide-react";
+import { ClipboardList, Plus, Search, Pause, X, Pencil } from "lucide-react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+
+interface Task {
+  id: string;
+  title: string;
+  task_type: string | null;
+  pay_per_task: number | null;
+  total_slots: number | null;
+  filled_slots: number | null;
+  status: string;
+  created_at: string;
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  active:   "bg-green-500/10 text-green-400",
+  paused:   "bg-yellow-500/10 text-yellow-400",
+  draft:    "bg-blue-500/10 text-blue-400",
+  archived: "bg-[var(--surface-subtle)] text-[var(--text-muted)]",
+};
+
+const TASK_TYPES = ["All Types", "Audio Recording", "Transcription", "Data Annotation", "App Testing", "Survey", "Content Task", "Micro-task"];
+const STATUSES   = ["All Status", "active", "paused", "draft", "archived"];
 
 export default function AdminTasksPage() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("All Types");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchTasks() {
+      const { data } = await supabase
+        .from("tasks")
+        .select("id, title, task_type, pay_per_task, total_slots, filled_slots, status, created_at")
+        .order("created_at", { ascending: false });
+      setTasks(data ?? []);
+      setLoading(false);
+    }
+    fetchTasks();
+  }, []);
+
+  async function updateStatus(id: string, newStatus: string) {
+    setUpdating(id);
+    const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", id);
+    if (!error) setTasks((prev) => prev.map((t) => t.id === id ? { ...t, status: newStatus } : t));
+    setUpdating(null);
+  }
+
+  const filtered = tasks.filter((t) => {
+    const matchSearch = search === "" || t.title.toLowerCase().includes(search.toLowerCase());
+    const matchType   = typeFilter === "All Types" || t.task_type === typeFilter;
+    const matchStatus = statusFilter === "All Status" || t.status === statusFilter;
+    return matchSearch && matchType && matchStatus;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -11,9 +69,7 @@ export default function AdminTasksPage() {
           <p className="text-sm text-[var(--text-secondary)]">Create and manage all contributor tasks.</p>
         </div>
         <Button asChild size="sm">
-          <Link href="/admin/tasks/new">
-            <Plus className="h-4 w-4" /> Post New Task
-          </Link>
+          <Link href="/admin/tasks/new"><Plus className="h-4 w-4" /> Post New Task</Link>
         </Button>
       </div>
 
@@ -21,26 +77,103 @@ export default function AdminTasksPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] flex-1 min-w-[200px] max-w-xs">
           <Search className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-          <input type="text" placeholder="Search tasks..." className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none" />
+          <input
+            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tasks…"
+            className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+          />
         </div>
-        {["Type", "Status"].map((f) => (
-          <select key={f} className="h-9 px-3 pr-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]">
-            <option>{f}</option>
-          </select>
-        ))}
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+          className="h-9 px-3 pr-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]">
+          {TASK_TYPES.map((t) => <option key={t}>{t}</option>)}
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 px-3 pr-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]">
+          {STATUSES.map((s) => <option key={s}>{s}</option>)}
+        </select>
       </div>
 
-      {/* Empty State */}
-      <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] py-16 flex flex-col items-center gap-4 text-center">
-        <ClipboardList className="h-10 w-10 text-[var(--text-muted)]" />
-        <div>
-          <p className="font-semibold text-[var(--text-primary)] mb-1">No tasks yet</p>
-          <p className="text-sm text-[var(--text-secondary)]">Post your first task and contributors can start applying.</p>
+      {loading ? (
+        <div className="space-y-2">
+          {[1,2,3].map((i) => <div key={i} className="h-16 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] animate-pulse" />)}
         </div>
-        <Button asChild size="sm">
-          <Link href="/admin/tasks/new"><Plus className="h-4 w-4" /> Post New Task</Link>
-        </Button>
-      </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] py-16 flex flex-col items-center gap-4 text-center">
+          <ClipboardList className="h-10 w-10 text-[var(--text-muted)]" />
+          <div>
+            <p className="font-semibold text-[var(--text-primary)] mb-1">
+              {tasks.length === 0 ? "No tasks yet" : "No results found"}
+            </p>
+            <p className="text-sm text-[var(--text-secondary)]">
+              {tasks.length === 0 ? "Post your first task for contributors." : "Try adjusting your filters."}
+            </p>
+          </div>
+          {tasks.length === 0 && (
+            <Button asChild size="sm">
+              <Link href="/admin/tasks/new"><Plus className="h-4 w-4" /> Post New Task</Link>
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead>
+              <tr className="bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
+                {["Title", "Type", "Coins/task", "Slots", "Status", "Actions"].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 font-medium text-[var(--text-secondary)] whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-default)]">
+              {filtered.map((task) => (
+                <tr key={task.id} className="hover:bg-[var(--surface-subtle)] transition-colors">
+                  <td className="px-4 py-3 font-medium text-[var(--text-primary)] max-w-[200px]">
+                    <p className="truncate">{task.title}</p>
+                  </td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">{task.task_type ?? "—"}</td>
+                  <td className="px-4 py-3 text-[var(--brand-500)] font-medium whitespace-nowrap">
+                    {task.pay_per_task ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">
+                    {task.filled_slots ?? 0} / {task.total_slots ?? "∞"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[task.status] ?? ""}`}>
+                      {task.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="secondary" size="sm" asChild>
+                        <Link href={`/admin/tasks/${task.id}/edit`}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+                      {task.status === "active" ? (
+                        <Button variant="secondary" size="sm" disabled={updating === task.id}
+                          onClick={() => updateStatus(task.id, "paused")}>
+                          <Pause className="h-3.5 w-3.5" /> Pause
+                        </Button>
+                      ) : task.status === "paused" ? (
+                        <Button variant="secondary" size="sm" disabled={updating === task.id}
+                          onClick={() => updateStatus(task.id, "active")}>
+                          ▶ Resume
+                        </Button>
+                      ) : null}
+                      {task.status !== "archived" && (
+                        <Button variant="destructive" size="sm" disabled={updating === task.id}
+                          onClick={() => updateStatus(task.id, "archived")}>
+                          <X className="h-3.5 w-3.5" /> Close
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

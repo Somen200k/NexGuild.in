@@ -125,10 +125,10 @@ export default function OpportunitiesPage() {
                       : "—"}
                   </span>
                   <Link
-                    href={`/dashboard/tasks`}
+                    href={`/dashboard/tasks/${task.id}`}
                     className="text-xs font-medium text-[var(--brand-500)] hover:underline flex-shrink-0"
                   >
-                    View task →
+                    Start Task →
                   </Link>
                 </div>
               </div>

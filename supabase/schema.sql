@@ -235,5 +235,14 @@ CREATE POLICY "Admins can manage voucher requests"
 GRANT ALL ON public.coin_transactions TO authenticated, service_role;
 GRANT ALL ON public.voucher_requests  TO authenticated, service_role;
 
--- ── 6. Grant admin role (run manually after creating the user) ─
+-- ── 6. Profile extensions ─────────────────────────────────────
+-- Run these to add skills, notification prefs, and phone columns.
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS skills            TEXT[]  DEFAULT '{}';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_prefs JSONB  DEFAULT '{"task_approved":true,"voucher_delivered":true,"new_opportunities":true}';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone             TEXT;
+
+GRANT ALL ON public.profiles TO authenticated, service_role;
+
+-- ── 7. Grant admin role (run manually after creating the user) ─
 -- UPDATE profiles SET role = 'admin' WHERE email = 'your@email.com';

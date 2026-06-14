@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Camera, Coins, X, Loader2 } from "lucide-react";
+import { Camera, Coins, X, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface Profile {
@@ -12,6 +12,7 @@ interface Profile {
   phone: string | null;
   joined_at: string | null;
   nexcoins: number;
+  skills: string[] | null;
 }
 
 const COUNTRIES = [
@@ -28,6 +29,8 @@ export default function ProfilePage() {
 
   // Edit modal state
   const [showEdit, setShowEdit] = useState(false);
+  const [skillInput, setSkillInput] = useState("");
+  const [skillSaving, setSkillSaving] = useState(false);
   const [editName, setEditName] = useState("");
   const [editCountry, setEditCountry] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -43,11 +46,11 @@ export default function ProfilePage() {
 
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, country, phone, joined_at, nexcoins")
+        .select("full_name, country, phone, joined_at, nexcoins, skills")
         .eq("id", user.id)
         .single();
 
-      setProfile(data ?? { full_name: null, country: null, phone: null, joined_at: null, nexcoins: 0 });
+      setProfile(data ?? { full_name: null, country: null, phone: null, joined_at: null, nexcoins: 0, skills: [] });
       setLoading(false);
     }
     fetchProfile();
@@ -84,8 +87,30 @@ export default function ProfilePage() {
 
     setProfile((prev) => prev
       ? { ...prev, full_name: editName.trim() || null, country: editCountry || null, phone: editPhone.trim() || null }
-      : prev
-    );
+      : prev);
+  }
+
+  async function addSkill(e: React.FormEvent) {
+    e.preventDefault();
+    const skill = skillInput.trim();
+    if (!skill || !userId) return;
+    const current = profile?.skills ?? [];
+    if (current.includes(skill)) { setSkillInput(""); return; }
+    setSkillSaving(true);
+    const updated = [...current, skill];
+    const { error } = await supabase.from("profiles").update({ skills: updated }).eq("id", userId);
+    if (!error) {
+      setProfile((prev) => prev ? { ...prev, skills: updated } : prev);
+      setSkillInput("");
+    }
+    setSkillSaving(false);
+  }
+
+  async function removeSkill(skill: string) {
+    if (!userId) return;
+    const updated = (profile?.skills ?? []).filter((s) => s !== skill);
+    const { error } = await supabase.from("profiles").update({ skills: updated }).eq("id", userId);
+    if (!error) setProfile((prev) => prev ? { ...prev, skills: updated } : prev);
     setSaving(false);
     setShowEdit(false);
   }
@@ -162,6 +187,34 @@ export default function ProfilePage() {
         <p className="text-2xl font-bold text-[var(--brand-500)]">
           {loading ? "—" : (profile?.nexcoins ?? 0).toLocaleString()}
         </p>
+      </div>
+
+      {/* Skills */}
+      <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] p-6">
+        <h3 className="font-semibold text-[var(--text-primary)] mb-4">Skills</h3>
+        <div className="flex flex-wrap gap-2 mb-4 min-h-[28px]">
+          {(profile?.skills ?? []).map((skill) => (
+            <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--brand-100)] text-[var(--brand-500)] text-sm font-medium">
+              {skill}
+              <button onClick={() => removeSkill(skill)} className="hover:text-red-400 transition-colors leading-none ml-0.5">×</button>
+            </span>
+          ))}
+          {!loading && (profile?.skills ?? []).length === 0 && (
+            <p className="text-sm text-[var(--text-muted)]">No skills added yet.</p>
+          )}
+        </div>
+        <form onSubmit={addSkill} className="flex gap-2">
+          <input
+            value={skillInput}
+            onChange={(e) => setSkillInput(e.target.value)}
+            placeholder="e.g. Transcription, Data Annotation…"
+            className="flex-1 h-9 px-3 rounded-md border border-[var(--border-strong)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
+          />
+          <Button type="submit" size="sm" disabled={skillSaving || !skillInput.trim()}>
+            {skillSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          </Button>
+        </form>
+        <p className="text-xs text-[var(--text-muted)] mt-2">Skills help match you with relevant project opportunities.</p>
       </div>
 
       {/* Reputation */}

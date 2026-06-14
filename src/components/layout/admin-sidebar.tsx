@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, Briefcase, FolderOpen,
-  ClipboardCheck, Layers, ArrowDownCircle, BarChart3,
-  Settings, LogOut,
+  ClipboardCheck, Layers, Gift, BarChart3,
+  Settings, LogOut, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NexGuildLogo } from "@/components/ui/nexguild-logo";
@@ -37,11 +37,12 @@ export function AdminSidebar() {
   const NAV_ITEMS = [
     { label: "Overview",      href: "/admin",                icon: LayoutDashboard, badge: 0 },
     { label: "Contributors",  href: "/admin/contributors",   icon: Users,           badge: 0 },
+    { label: "Tasks",         href: "/admin/tasks",          icon: ClipboardList,   badge: 0 },
     { label: "Opportunities", href: "/admin/opportunities",  icon: Briefcase,       badge: 0 },
     { label: "Projects",      href: "/admin/projects",       icon: FolderOpen,      badge: 0 },
     { label: "Submissions",   href: "/admin/submissions",    icon: ClipboardCheck,  badge: submissionCount },
     { label: "Offerwalls",    href: "/admin/offerwalls",     icon: Layers,          badge: 0 },
-    { label: "Withdrawals",   href: "/admin/withdrawals",    icon: ArrowDownCircle, badge: withdrawalCount },
+    { label: "Vouchers",      href: "/admin/vouchers",       icon: Gift,            badge: withdrawalCount },
     { label: "Finances",      href: "/admin/finances",       icon: BarChart3,       badge: 0 },
     { label: "Settings",      href: "/admin/settings",       icon: Settings,        badge: 0 },
   ];
