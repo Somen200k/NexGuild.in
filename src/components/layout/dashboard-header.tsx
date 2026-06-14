@@ -3,7 +3,7 @@
 import { Bell, ChevronDown, CheckCheck } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -52,25 +52,54 @@ export function DashboardHeader() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const fetchNotifications = useCallback(async (uid: string) => {
-    const { data } = await supabase
-      .from("notifications")
-      .select("id, title, message, type, is_read, created_at")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(30);
-    setNotifications((data as Notification[]) ?? []);
-  }, []);
-
+  // Fetch once on mount + subscribe to new inserts via realtime.
+  // Never re-fetch on bell open or route change — local state is the source of truth.
   useEffect(() => {
+    // channel ref lives inside the effect so cleanup always removes the right one
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
       setUserId(user.id);
-      fetchNotifications(user.id);
+
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, title, message, type, is_read, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (error) console.error("[notifications] fetch:", error.message);
+      else setNotifications((data as Notification[]) ?? []);
+
+      // Realtime: prepend new notifications as they arrive
+      channel = supabase
+        .channel(`notifications-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event:  "INSERT",
+            schema: "public",
+            table:  "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            setNotifications((prev) => [payload.new as Notification, ...prev]);
+          }
+        )
+        .subscribe();
     }
+
     init();
-  }, [fetchNotifications]);
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  // Empty deps: intentional — run once on mount, clean up on unmount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -86,22 +115,22 @@ export function DashboardHeader() {
 
   async function markAllRead() {
     if (!userId) return;
-    // Update DB first, then local state — keeps them in sync
-    await supabase
+    // Optimistic: update UI immediately so the badge disappears at once
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    // Persist to DB — fire and forget (UI is already correct)
+    const { error } = await supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", userId)
       .eq("is_read", false);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    if (error) console.error("[notifications] markAllRead:", error.message);
   }
 
   async function markRead(id: string) {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    // Optimistic update first, then persist
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
-  }
-
-  function handleBellClick() {
-    setOpen((v) => !v);
+    const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    if (error) console.error("[notifications] markRead:", error.message);
   }
 
   return (
@@ -112,7 +141,7 @@ export function DashboardHeader() {
         {/* Notification Bell */}
         <div ref={ref} className="relative">
           <button
-            onClick={handleBellClick}
+            onClick={() => setOpen((v) => !v)}
             className="relative h-9 w-9 flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)] transition-colors"
             aria-label="Notifications"
           >
