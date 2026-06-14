@@ -140,13 +140,19 @@ export default function SettingsPage() {
               role="switch"
               aria-checked={notifs[item.key]}
               onClick={() => toggleNotif(item.key)}
-              className={`h-6 w-11 rounded-full relative flex-shrink-0 transition-colors ${
-                notifs[item.key] ? "bg-[var(--brand-500)]" : "bg-[var(--border-strong)]"
-              }`}
+              style={{
+                backgroundColor: notifs[item.key] ? "#14b8a6" : "#4b5563",
+                transition: "background-color 0.2s ease",
+              }}
+              className="h-6 w-11 rounded-full relative flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[#14b8a6] focus:ring-offset-2 focus:ring-offset-[var(--surface-card)]"
             >
-              <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-                notifs[item.key] ? "translate-x-5" : "translate-x-1"
-              }`} />
+              <span
+                style={{
+                  transform: notifs[item.key] ? "translateX(22px)" : "translateX(2px)",
+                  transition: "transform 0.2s ease",
+                }}
+                className="absolute top-[2px] h-5 w-5 rounded-full bg-white shadow-md"
+              />
             </button>
           </div>
         ))}
