@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, FolderOpen,
   ClipboardCheck, Layers, Gift, BarChart3,
-  Settings, LogOut, ClipboardList, GraduationCap, Megaphone,
+  Settings, LogOut, ClipboardList, GraduationCap, Megaphone, Headphones,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NexGuildLogo } from "@/components/ui/nexguild-logo";
@@ -17,18 +17,21 @@ export function AdminSidebar() {
   const [submissionCount, setSubmissionCount]   = useState(0);
   const [withdrawalCount, setWithdrawalCount]   = useState(0);
   const [assignmentCount, setAssignmentCount]   = useState(0);
+  const [supportCount, setSupportCount]         = useState(0);
 
   useEffect(() => {
     async function fetchCounts() {
       try {
-        const [{ count: wdCount }, { count: subCount }, { count: asnCount }] = await Promise.all([
+        const [{ count: wdCount }, { count: subCount }, { count: asnCount }, { count: supCount }] = await Promise.all([
           supabase.from("voucher_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
           supabase.from("submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
           supabase.from("assignments").select("*", { count: "exact", head: true }).eq("status", "pending"),
+          supabase.from("support_tickets").select("*", { count: "exact", head: true }).eq("status", "open"),
         ]);
         setWithdrawalCount(wdCount ?? 0);
         setSubmissionCount(subCount ?? 0);
         setAssignmentCount(asnCount ?? 0);
+        setSupportCount(supCount ?? 0);
       } catch {
         // silently keep counts at 0 if queries fail
       }
@@ -46,6 +49,7 @@ export function AdminSidebar() {
     { label: "Offerwalls",    href: "/admin/offerwalls",     icon: Layers,          badge: 0 },
     { label: "Vouchers",      href: "/admin/vouchers",       icon: Gift,            badge: withdrawalCount },
     { label: "Announcements", href: "/admin/announcements",  icon: Megaphone,       badge: 0 },
+    { label: "Support",       href: "/admin/support",        icon: Headphones,      badge: supportCount },
     { label: "Finances",      href: "/admin/finances",       icon: BarChart3,       badge: 0 },
     { label: "Settings",      href: "/admin/settings",       icon: Settings,        badge: 0 },
   ];

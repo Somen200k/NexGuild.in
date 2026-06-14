@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/wallet":        "NexCoins",
   "/dashboard/store":         "Store",
   "/dashboard/vouchers":      "My Vouchers",
+  "/dashboard/support":       "Support",
   "/dashboard/profile":       "Profile",
   "/dashboard/settings":      "Settings",
 };
@@ -26,6 +27,7 @@ const TYPE_COLORS: Record<string, string> = {
   assignment_rejected:  "text-red-400",
   voucher_delivered:    "text-[var(--brand-500)]",
   voucher:              "text-[var(--brand-500)]",
+  support:              "text-blue-400",
   new_task:             "text-blue-400",
   announcement:         "text-[var(--brand-500)]",
 };

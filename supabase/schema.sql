@@ -404,7 +404,36 @@ $$;
 GRANT EXECUTE ON FUNCTION decrement_nexcoins(UUID, INTEGER) TO service_role;
 GRANT EXECUTE ON FUNCTION decrement_nexcoins(UUID, INTEGER) TO authenticated;
 
--- ── 14. Storage buckets (run in Supabase Dashboard → Storage) ────
+-- ── 14. Support tickets ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  contributor_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  subject        TEXT NOT NULL,
+  message        TEXT NOT NULL,
+  category       TEXT DEFAULT 'general',
+  status         TEXT DEFAULT 'open',     -- 'open' | 'replied' | 'closed'
+  priority       TEXT DEFAULT 'normal',   -- 'normal' | 'high' | 'urgent'
+  admin_reply    TEXT,
+  replied_at     TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own tickets"
+  ON support_tickets FOR ALL TO authenticated
+  USING (auth.uid() = contributor_id)
+  WITH CHECK (auth.uid() = contributor_id);
+
+CREATE POLICY "Service role manages tickets"
+  ON support_tickets FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
+GRANT ALL ON support_tickets TO authenticated;
+GRANT ALL ON support_tickets TO service_role;
+
+-- ── 15. Storage buckets (run in Supabase Dashboard → Storage) ────
 -- Create bucket "submissions" — public read, authenticated write
 -- Create bucket "assignments" — public read, authenticated write
 -- Or run via SQL:

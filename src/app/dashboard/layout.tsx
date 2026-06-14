@@ -2,6 +2,7 @@ import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { DashboardMobileNav } from "@/components/layout/dashboard-mobile-nav";
 import { AuthGuard } from "@/components/layout/auth-guard";
+import { SupportButton } from "@/components/layout/support-button";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="p-6 max-w-content">{children}</div>
         </main>
         <DashboardMobileNav />
+
+        {/* Floating support help button */}
+        <SupportButton />
 
         {/* WhatsApp support button — fixed bottom-right on all dashboard pages */}
         <a
