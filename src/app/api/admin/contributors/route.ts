@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { FROM_NOREPLY, getResend, accountBannedHtml } from "@/lib/email";
 
 async function verifyAdminOrOwner(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -32,19 +33,50 @@ export async function PATCH(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const { contributorId, status } = (body ?? {}) as { contributorId?: string; status?: string };
+  const { contributorId, status, reason } = (body ?? {}) as {
+    contributorId?: string;
+    status?: string;
+    reason?: string;
+  };
 
   if (!contributorId || !["active", "suspended", "banned"].includes(status ?? "")) {
     return NextResponse.json({ error: "contributorId and valid status are required." }, { status: 400 });
   }
 
+  if (status === "banned" && !reason?.trim()) {
+    return NextResponse.json({ error: "A ban reason is required." }, { status: 400 });
+  }
+
   // Protect owner from being banned
-  const { data: target } = await ctx.admin.from("profiles").select("role").eq("id", contributorId).single();
-  if ((target as { role: string } | null)?.role === "owner") {
+  const { data: target } = await ctx.admin
+    .from("profiles")
+    .select("role, full_name, email")
+    .eq("id", contributorId)
+    .single();
+
+  const t = target as { role: string; full_name: string | null; email: string | null } | null;
+  if (t?.role === "owner") {
     return NextResponse.json({ error: "Cannot modify the owner account." }, { status: 403 });
   }
 
   const { error } = await ctx.admin.from("profiles").update({ status }).eq("id", contributorId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (status === "banned") {
+    // Invalidate all active sessions for this user
+    await ctx.admin.auth.admin.signOut(contributorId, "others").catch(() => {});
+
+    // Send ban email (non-critical)
+    const resend = getResend();
+    if (resend && t?.email) {
+      resend.emails.send({
+        from:    FROM_NOREPLY,
+        to:      t.email,
+        subject: "Your NexGuild account has been suspended",
+        html:    accountBannedHtml(t.full_name ?? "Contributor", reason!.trim()),
+      }).catch((e: unknown) => console.error("[ban] email error:", e));
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

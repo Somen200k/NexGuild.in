@@ -56,7 +56,10 @@ export default function ContributorDetailPage({ params }: { params: Promise<{ id
   const [transactions, setTransactions] = useState<CoinTxn[]>([]);
   const [tickets, setTickets]           = useState<Ticket[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [banModal, setBanModal]         = useState(false);
+  const [banReason, setBanReason]       = useState("");
   const [banning, setBanning]           = useState(false);
+  const [banErr, setBanErr]             = useState<string | null>(null);
   const [deleting, setDeleting]         = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
@@ -95,16 +98,36 @@ export default function ContributorDetailPage({ params }: { params: Promise<{ id
     load();
   }, [id]);
 
-  async function toggleBan() {
+  function openBanModal() {
+    setBanReason("");
+    setBanErr(null);
+    setBanModal(true);
+  }
+
+  async function handleBan(e: React.FormEvent) {
+    e.preventDefault();
     if (!profile) return;
-    const newStatus = profile.status === "banned" ? "active" : "banned";
+    const isBanning = profile.status !== "banned";
+    if (isBanning && !banReason.trim()) { setBanErr("A reason is required."); return; }
     setBanning(true);
+    setBanErr(null);
+    const newStatus = isBanning ? "banned" : "active";
     const res = await fetch("/api/admin/contributors", {
       method:  "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
-      body:    JSON.stringify({ contributorId: profile.id, status: newStatus }),
+      body:    JSON.stringify({
+        contributorId: profile.id,
+        status: newStatus,
+        reason: isBanning ? banReason.trim() : undefined,
+      }),
     });
-    if (res.ok) setProfile({ ...profile, status: newStatus });
+    if (res.ok) {
+      setProfile({ ...profile, status: newStatus });
+      setBanModal(false);
+    } else {
+      const data = await res.json();
+      setBanErr(data.error ?? "Failed.");
+    }
     setBanning(false);
   }
 
@@ -223,7 +246,7 @@ export default function ContributorDetailPage({ params }: { params: Promise<{ id
             <Button variant="secondary" size="sm" className="text-red-400 border-red-500/30 hover:bg-red-500/10" onClick={() => openCoinsModal("deduct")}>
               <Minus className="h-3.5 w-3.5" /> Deduct
             </Button>
-            <Button variant={profile.status === "banned" ? "secondary" : "destructive"} size="sm" disabled={banning} onClick={toggleBan}>
+            <Button variant={profile.status === "banned" ? "secondary" : "destructive"} size="sm" onClick={openBanModal}>
               <Ban className="h-3.5 w-3.5" />
               {profile.status === "banned" ? "Unban" : "Ban"}
             </Button>
@@ -406,6 +429,55 @@ export default function ContributorDetailPage({ params }: { params: Promise<{ id
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Ban Modal ────────────────────────────────────────────── */}
+      {banModal && profile && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60">
+          <div className="w-full max-w-sm bg-[var(--surface-card)] rounded-xl border border-[var(--border-default)] p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Ban className="h-5 w-5 text-red-400" />
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                  {profile.status === "banned" ? "Unban" : "Ban"} User
+                </h2>
+              </div>
+              <button onClick={() => setBanModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              {profile.status === "banned"
+                ? `Restore access for ${profile.full_name ?? profile.email}?`
+                : `Ban ${profile.full_name ?? profile.email}? They will be signed out and notified by email.`}
+            </p>
+            <form onSubmit={handleBan} className="space-y-4">
+              {profile.status !== "banned" && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
+                    Reason <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    required
+                    value={banReason}
+                    onChange={(e) => setBanReason(e.target.value)}
+                    rows={3}
+                    placeholder="Explain why this account is being suspended…"
+                    className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] resize-none"
+                  />
+                </div>
+              )}
+              {banErr && <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md">{banErr}</p>}
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setBanModal(false)}>Cancel</Button>
+                <Button type="submit" disabled={banning}
+                  className={`flex-1 ${profile.status !== "banned" ? "bg-red-500 hover:bg-red-400 border-0" : ""}`}>
+                  {banning ? <Loader2 className="h-4 w-4 animate-spin" /> : profile.status === "banned" ? "Unban" : "Ban User"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

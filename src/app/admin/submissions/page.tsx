@@ -122,7 +122,9 @@ export default function AdminSubmissionsPage() {
   }
 
   const filtered = submissions.filter((s) => {
-    const matchTab = s.status === activeTab;
+    const matchTab = activeTab === "submitted"
+      ? s.status === "submitted" || s.status === "pending"
+      : s.status === activeTab;
     const term = search.toLowerCase();
     const matchSearch =
       search === "" ||
@@ -132,8 +134,8 @@ export default function AdminSubmissionsPage() {
     return matchTab && matchSearch;
   });
 
-  const pendingCount = submissions.filter((s) => s.status === "submitted").length;
-  const pendingFiltered = filtered.filter((s) => s.status === "submitted");
+  const pendingCount = submissions.filter((s) => s.status === "submitted" || s.status === "pending").length;
+  const pendingFiltered = filtered.filter((s) => s.status === "submitted" || s.status === "pending");
   const allPendingSelected = pendingFiltered.length > 0 && pendingFiltered.every((s) => selected.has(s.id));
 
   function toggleSelect(id: string) {
@@ -244,7 +246,7 @@ export default function AdminSubmissionsPage() {
               {/* Header */}
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
-                  {sub.status === "submitted" && (
+                  {(sub.status === "submitted" || sub.status === "pending") && (
                     <input
                       type="checkbox"
                       checked={selected.has(sub.id)}
@@ -319,7 +321,7 @@ export default function AdminSubmissionsPage() {
               )}
 
               {/* Review controls */}
-              {sub.status === "submitted" && (
+              {(sub.status === "submitted" || sub.status === "pending") && (
                 <div className="border-t border-[var(--border-default)] pt-4 space-y-3">
                   <div className="flex gap-2">
                     <input

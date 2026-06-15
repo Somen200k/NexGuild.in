@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { FROM_NOREPLY, getResend, coinsDeductedHtml } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -27,13 +28,14 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("nexcoins, full_name")
+    .select("nexcoins, full_name, email")
     .eq("id", contributorId)
     .single();
 
   if (!profile) return NextResponse.json({ error: "Contributor not found." }, { status: 404 });
 
-  const current    = (profile as { nexcoins: number }).nexcoins ?? 0;
+  const p = profile as { nexcoins: number; full_name: string | null; email: string | null };
+  const current    = p.nexcoins ?? 0;
   const newBalance = Math.max(0, current - amount);
   const deducted   = current - newBalance;
 
@@ -60,6 +62,17 @@ export async function POST(req: NextRequest) {
       : `${deducted.toLocaleString()} NexCoins have been deducted from your account by the admin.`,
     type: "system",
   });
+
+  // Send email (non-critical)
+  const resend = getResend();
+  if (resend && p.email) {
+    resend.emails.send({
+      from:    FROM_NOREPLY,
+      to:      p.email,
+      subject: `${deducted.toLocaleString()} NexCoins deducted from your account`,
+      html:    coinsDeductedHtml(p.full_name ?? "Contributor", deducted, reason?.trim() || null, newBalance),
+    }).catch((e: unknown) => console.error("[deduct-coins] email error:", e));
+  }
 
   return NextResponse.json({ success: true, newBalance, amountDeducted: deducted });
 }

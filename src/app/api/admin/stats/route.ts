@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   ] = await Promise.all([
     admin.from("profiles").select("*", { count: "exact", head: true }).eq("role", "contributor"),
     admin.from("tasks").select("*", { count: "exact", head: true }).eq("status", "active"),
-    admin.from("submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
+    admin.from("submissions").select("*", { count: "exact", head: true }).in("status", ["submitted", "pending"]),
     admin.from("assignments").select("*", { count: "exact", head: true }).eq("status", "pending"),
     admin.from("voucher_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
     admin.from("submissions").select("coins_awarded").eq("status", "approved"),

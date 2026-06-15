@@ -9,15 +9,32 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.replace("/login");
-      } else {
-        setReady(true);
+        return;
       }
-    });
 
-    // Redirect to /earn on explicit signout; /login if session expires
+      // Check if account is banned
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("id", session.user.id)
+        .single();
+
+      if ((profile as { status: string } | null)?.status === "banned") {
+        await supabase.auth.signOut();
+        router.replace("/earn?banned=1");
+        return;
+      }
+
+      setReady(true);
+    }
+
+    checkSession();
+
+    // Redirect on signout or session expiry
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
         router.replace(event === "SIGNED_OUT" ? "/earn" : "/login");

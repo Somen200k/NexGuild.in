@@ -28,7 +28,12 @@ export default function ContributorsPage() {
   const [loading, setLoading]           = useState(true);
   const [search, setSearch]             = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [banning, setBanning]           = useState<string | null>(null);
+
+  // Ban modal
+  const [banTarget, setBanTarget]   = useState<Contributor | null>(null);
+  const [banReason, setBanReason]   = useState("");
+  const [banning, setBanning]       = useState(false);
+  const [banErr, setBanErr]         = useState<string | null>(null);
 
   // Send / Deduct Coins modal
   const [sendTarget, setSendTarget]   = useState<Contributor | null>(null);
@@ -57,20 +62,41 @@ export default function ContributorsPage() {
     fetchContributors();
   }, []);
 
-  async function toggleBan(contributor: Contributor) {
-    const newStatus = contributor.status === "banned" ? "active" : "banned";
-    setBanning(contributor.id);
+  function openBan(c: Contributor) {
+    setBanTarget(c);
+    setBanReason("");
+    setBanErr(null);
+  }
+
+  async function handleBan(e: React.FormEvent) {
+    e.preventDefault();
+    if (!banTarget) return;
+    const isBanning = banTarget.status !== "banned";
+    if (isBanning && !banReason.trim()) { setBanErr("A reason is required to ban a user."); return; }
+    setBanning(true);
+    setBanErr(null);
+
+    const newStatus = isBanning ? "banned" : "active";
     const res = await fetch("/api/admin/contributors", {
       method:  "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
-      body:    JSON.stringify({ contributorId: contributor.id, status: newStatus }),
+      body:    JSON.stringify({
+        contributorId: banTarget.id,
+        status: newStatus,
+        reason: isBanning ? banReason.trim() : undefined,
+      }),
     });
+
     if (res.ok) {
       setContributors((prev) =>
-        prev.map((c) => c.id === contributor.id ? { ...c, status: newStatus } : c)
+        prev.map((c) => c.id === banTarget!.id ? { ...c, status: newStatus } : c)
       );
+      setBanTarget(null);
+    } else {
+      const data = await res.json();
+      setBanErr(data.error ?? "Failed to update status.");
     }
-    setBanning(null);
+    setBanning(false);
   }
 
   function openSendCoins(c: Contributor, mode: "send" | "deduct" = "send") {
@@ -225,8 +251,7 @@ export default function ContributorsPage() {
                       <Button
                         variant={c.status === "banned" ? "secondary" : "destructive"}
                         size="sm"
-                        disabled={banning === c.id}
-                        onClick={() => toggleBan(c)}
+                        onClick={() => openBan(c)}
                       >
                         <Ban className="h-3.5 w-3.5" />
                         {c.status === "banned" ? "Unban" : "Ban"}
@@ -237,6 +262,66 @@ export default function ContributorsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Ban Modal ────────────────────────────────────────────────── */}
+      {banTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60">
+          <div className="w-full max-w-sm bg-[var(--surface-card)] rounded-xl border border-[var(--border-default)] p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Ban className="h-5 w-5 text-red-400" />
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                  {banTarget.status === "banned" ? "Unban" : "Ban"} User
+                </h2>
+              </div>
+              <button onClick={() => setBanTarget(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              {banTarget.status === "banned"
+                ? `Restore access for ${banTarget.full_name ?? banTarget.email}?`
+                : `You are about to ban ${banTarget.full_name ?? banTarget.email}. They will be signed out and notified by email.`}
+            </p>
+
+            <form onSubmit={handleBan} className="space-y-4">
+              {banTarget.status !== "banned" && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
+                    Reason for ban <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    required
+                    value={banReason}
+                    onChange={(e) => setBanReason(e.target.value)}
+                    rows={3}
+                    placeholder="Explain why this account is being suspended…"
+                    className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] resize-none"
+                  />
+                </div>
+              )}
+
+              {banErr && <p className="text-sm text-red-400 bg-red-500/10 px-3 py-2 rounded-md">{banErr}</p>}
+
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setBanTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={banning}
+                  className={`flex-1 ${banTarget.status !== "banned" ? "bg-red-500 hover:bg-red-400 border-0" : ""}`}
+                >
+                  {banning
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : banTarget.status === "banned" ? "Unban" : "Ban User"}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

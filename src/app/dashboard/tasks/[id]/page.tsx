@@ -146,6 +146,14 @@ export default function TaskDetailPage() {
       if (existing) setSubmission(existing as Submission);
     } else {
       setSubmission(data as Submission);
+      // Increment filled_slots and close task if full
+      const newFilled = (task.filled_slots ?? 0) + 1;
+      const isFull = task.total_slots != null && newFilled >= task.total_slots;
+      await supabase.from("tasks").update({
+        filled_slots: newFilled,
+        ...(isFull ? { status: "closed" } : {}),
+      }).eq("id", task.id);
+      setTask((prev) => prev ? { ...prev, filled_slots: newFilled, ...(isFull ? { status: "closed" } : {}) } : prev);
     }
     setStarting(false);
   }

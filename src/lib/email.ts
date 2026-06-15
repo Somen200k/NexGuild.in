@@ -253,7 +253,112 @@ ${btn("View Task →", `https://nexguild.in/dashboard/tasks/${id}`)}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 7. Announcement
+// 7. Account Banned
+// ─────────────────────────────────────────────────────────────────────────────
+export function accountBannedHtml(name: string, reason: string): string {
+  const n = esc(name), r = esc(reason);
+  return layout(`
+<h1 style="margin:0 0 6px;font-size:22px;font-weight:800;color:#fff;">Account Suspended</h1>
+<p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.38);">Your NexGuild account has been suspended</p>
+
+<p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+  Hi <strong style="color:#fff;">${n}</strong>,<br><br>
+  Your NexGuild account has been suspended following a review. You will not be able to access your account until this is resolved.
+</p>
+
+<div style="background:#1c1010;border:1px solid rgba(239,68,68,0.25);border-left:3px solid #ef4444;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 20px;">
+  <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:1px;">Reason for suspension</p>
+  <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;white-space:pre-wrap;">${r}</p>
+</div>
+
+<div style="background:#111;border:1px solid #222;border-radius:10px;padding:16px 20px;margin:0 0 24px;">
+  <p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.5);">If you believe this is a mistake, please contact us:</p>
+  <p style="margin:0;font-size:14px;color:#F59E0B;font-weight:600;">nexguild.in@gmail.com</p>
+</div>`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Coins Received (admin send)
+// ─────────────────────────────────────────────────────────────────────────────
+export function coinsReceivedHtml(
+  name: string,
+  amount: number,
+  reason: string | null,
+  newBalance: number,
+): string {
+  const n = esc(name), r = reason ? esc(reason) : null;
+  return layout(`
+<div style="background:linear-gradient(135deg,#0a1a0a,#0f1a0f);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:18px 22px;margin:0 0 24px;">
+  <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#F59E0B;text-transform:uppercase;letter-spacing:1px;">NexCoins Received 🎉</p>
+  <p style="margin:0;font-size:32px;font-weight:800;color:#F59E0B;">+${amount.toLocaleString()}</p>
+</div>
+
+<p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+  Hi <strong style="color:#fff;">${n}</strong>,<br><br>
+  The NexGuild admin has sent you <strong style="color:#F59E0B;">${amount.toLocaleString()} NexCoins</strong>. They've been added to your balance.
+</p>
+
+${r ? `<div style="background:#111;border:1px solid #222;border-radius:10px;padding:16px 20px;margin:0 0 20px;">
+  <p style="margin:0 0 6px;font-size:12px;color:rgba(255,255,255,0.38);">Reason</p>
+  <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.75);">${r}</p>
+</div>` : ""}
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid #222;border-radius:10px;margin:0 0 24px;">
+  <tr><td style="padding:14px 20px;border-bottom:1px solid #1a1a1a;">
+    <span style="font-size:12px;color:rgba(255,255,255,0.38);">Coins Added</span><br>
+    <span style="font-size:16px;color:#F59E0B;font-weight:700;">+${amount.toLocaleString()} NexCoins</span>
+  </td></tr>
+  <tr><td style="padding:14px 20px;">
+    <span style="font-size:12px;color:rgba(255,255,255,0.38);">New Balance</span><br>
+    <span style="font-size:16px;color:#fff;font-weight:700;">${newBalance.toLocaleString()} NexCoins</span>
+  </td></tr>
+</table>
+
+${btn("View Earnings →", "https://nexguild.in/dashboard/earnings")}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. Coins Deducted (admin deduct)
+// ─────────────────────────────────────────────────────────────────────────────
+export function coinsDeductedHtml(
+  name: string,
+  amount: number,
+  reason: string | null,
+  newBalance: number,
+): string {
+  const n = esc(name), r = reason ? esc(reason) : null;
+  return layout(`
+<h1 style="margin:0 0 6px;font-size:22px;font-weight:800;color:#fff;">NexCoins Deducted</h1>
+<p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.38);">A deduction has been applied to your account</p>
+
+<p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+  Hi <strong style="color:#fff;">${n}</strong>,<br><br>
+  <strong style="color:#f87171;">${amount.toLocaleString()} NexCoins</strong> have been deducted from your NexGuild balance.
+</p>
+
+${r ? `<div style="background:#1c1010;border:1px solid rgba(239,68,68,0.2);border-left:3px solid #ef4444;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 20px;">
+  <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:1px;">Reason</p>
+  <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.7);">${r}</p>
+</div>` : ""}
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid #222;border-radius:10px;margin:0 0 20px;">
+  <tr><td style="padding:14px 20px;border-bottom:1px solid #1a1a1a;">
+    <span style="font-size:12px;color:rgba(255,255,255,0.38);">Coins Deducted</span><br>
+    <span style="font-size:16px;color:#f87171;font-weight:700;">-${amount.toLocaleString()} NexCoins</span>
+  </td></tr>
+  <tr><td style="padding:14px 20px;">
+    <span style="font-size:12px;color:rgba(255,255,255,0.38);">New Balance</span><br>
+    <span style="font-size:16px;color:#fff;font-weight:700;">${newBalance.toLocaleString()} NexCoins</span>
+  </td></tr>
+</table>
+
+<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.38);">
+  If you have questions about this deduction, contact us at <a href="mailto:nexguild.in@gmail.com" style="color:#F59E0B;text-decoration:none;">nexguild.in@gmail.com</a>
+</p>`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. Announcement
 // ─────────────────────────────────────────────────────────────────────────────
 export function announcementHtml(
   name: string,
