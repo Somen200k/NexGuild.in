@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, Search, Pause, X, Pencil } from "lucide-react";
+import { ClipboardList, Plus, Search, Pause, X, Pencil, BarChart2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import type { TaskStat } from "@/app/api/admin/task-analytics/route";
 
 interface Task {
   id: string;
@@ -28,15 +29,23 @@ const TASK_TYPES = ["All Types", "Audio Recording", "Transcription", "Data Annot
 const STATUSES   = ["All Status", "active", "paused", "draft", "archived"];
 
 export default function AdminTasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All Types");
+  const tokenRef = useRef<string | null>(null);
+  const [tasks, setTasks]             = useState<Task[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState("");
+  const [typeFilter, setTypeFilter]   = useState("All Types");
   const [statusFilter, setStatusFilter] = useState("All Status");
-  const [updating, setUpdating] = useState<string | null>(null);
+  const [updating, setUpdating]       = useState<string | null>(null);
+  const [view, setView]               = useState<"tasks" | "analytics">("tasks");
+  const [analytics, setAnalytics]     = useState<TaskStat[] | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError]     = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTasks() {
+      const { data: { session } } = await supabase.auth.getSession();
+      tokenRef.current = session?.access_token ?? null;
+
       const { data } = await supabase
         .from("tasks")
         .select("id, title, task_type, pay_per_task, total_slots, filled_slots, status, created_at")
@@ -46,6 +55,28 @@ export default function AdminTasksPage() {
     }
     fetchTasks();
   }, []);
+
+  async function loadAnalytics() {
+    if (analytics !== null) return;
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    const res = await fetch("/api/admin/task-analytics", {
+      headers: { Authorization: `Bearer ${tokenRef.current}` },
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({})) as { error?: string };
+      setAnalyticsError(d.error ?? "Failed to load analytics.");
+    } else {
+      const { stats } = await res.json() as { stats: TaskStat[] };
+      setAnalytics(stats);
+    }
+    setAnalyticsLoading(false);
+  }
+
+  function switchView(next: "tasks" | "analytics") {
+    setView(next);
+    if (next === "analytics") loadAnalytics();
+  }
 
   async function updateStatus(id: string, newStatus: string) {
     setUpdating(id);
@@ -68,112 +99,248 @@ export default function AdminTasksPage() {
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tasks</h1>
           <p className="text-sm text-[var(--text-secondary)]">Create and manage all contributor tasks.</p>
         </div>
-        <Button asChild size="sm">
-          <Link href="/admin/tasks/new"><Plus className="h-4 w-4" /> Post New Task</Link>
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] flex-1 min-w-[200px] max-w-xs">
-          <Search className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
-          <input
-            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tasks…"
-            className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
-          />
-        </div>
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-          className="h-9 px-3 pr-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]">
-          {TASK_TYPES.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-9 px-3 pr-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]">
-          {STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1,2,3].map((i) => <div key={i} className="h-16 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] animate-pulse" />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] py-16 flex flex-col items-center gap-4 text-center">
-          <ClipboardList className="h-10 w-10 text-[var(--text-muted)]" />
-          <div>
-            <p className="font-semibold text-[var(--text-primary)] mb-1">
-              {tasks.length === 0 ? "No tasks yet" : "No results found"}
-            </p>
-            <p className="text-sm text-[var(--text-secondary)]">
-              {tasks.length === 0 ? "Post your first task for contributors." : "Try adjusting your filters."}
-            </p>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] p-0.5 gap-0.5">
+            <button
+              onClick={() => switchView("tasks")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                view === "tasks"
+                  ? "bg-[var(--brand-500)] text-white"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              <ClipboardList className="h-3.5 w-3.5" /> Tasks
+            </button>
+            <button
+              onClick={() => switchView("analytics")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                view === "analytics"
+                  ? "bg-[var(--brand-500)] text-white"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              <BarChart2 className="h-3.5 w-3.5" /> Analytics
+            </button>
           </div>
-          {tasks.length === 0 && (
-            <Button asChild size="sm">
-              <Link href="/admin/tasks/new"><Plus className="h-4 w-4" /> Post New Task</Link>
-            </Button>
-          )}
+          <Button asChild size="sm">
+            <Link href="/admin/tasks/new"><Plus className="h-4 w-4" /> Post New Task</Link>
+          </Button>
         </div>
+      </div>
+
+      {view === "analytics" ? (
+        <AnalyticsView stats={analytics} loading={analyticsLoading} error={analyticsError} />
       ) : (
-        <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
-            <thead>
-              <tr className="bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
-                {["Title", "Type", "Coins/task", "Slots", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-[var(--text-secondary)] whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-default)]">
-              {filtered.map((task) => (
-                <tr key={task.id} className="hover:bg-[var(--surface-subtle)] transition-colors">
-                  <td className="px-4 py-3 font-medium text-[var(--text-primary)] max-w-[200px]">
-                    <p className="truncate">{task.title}</p>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">{task.task_type ?? "—"}</td>
-                  <td className="px-4 py-3 text-[var(--brand-500)] font-medium whitespace-nowrap">
-                    {task.pay_per_task ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">
-                    {task.filled_slots ?? 0} / {task.total_slots ?? "∞"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[task.status] ?? ""}`}>
-                      {task.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <Button variant="secondary" size="sm" asChild>
-                        <Link href={`/admin/tasks/${task.id}/edit`}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Link>
-                      </Button>
-                      {task.status === "active" ? (
-                        <Button variant="secondary" size="sm" disabled={updating === task.id}
-                          onClick={() => updateStatus(task.id, "paused")}>
-                          <Pause className="h-3.5 w-3.5" /> Pause
-                        </Button>
-                      ) : task.status === "paused" ? (
-                        <Button variant="secondary" size="sm" disabled={updating === task.id}
-                          onClick={() => updateStatus(task.id, "active")}>
-                          ▶ Resume
-                        </Button>
-                      ) : null}
-                      {task.status !== "archived" && (
-                        <Button variant="destructive" size="sm" disabled={updating === task.id}
-                          onClick={() => updateStatus(task.id, "archived")}>
-                          <X className="h-3.5 w-3.5" /> Close
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Filters */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] flex-1 min-w-[200px] max-w-xs">
+              <Search className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
+              <input
+                type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search tasks…"
+                className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+              />
+            </div>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+              className="h-9 px-3 pr-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]">
+              {TASK_TYPES.map((t) => <option key={t}>{t}</option>)}
+            </select>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-9 px-3 pr-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]">
+              {STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">
+              {[1,2,3].map((i) => <div key={i} className="h-16 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] animate-pulse" />)}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] py-16 flex flex-col items-center gap-4 text-center">
+              <ClipboardList className="h-10 w-10 text-[var(--text-muted)]" />
+              <div>
+                <p className="font-semibold text-[var(--text-primary)] mb-1">
+                  {tasks.length === 0 ? "No tasks yet" : "No results found"}
+                </p>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {tasks.length === 0 ? "Post your first task for contributors." : "Try adjusting your filters."}
+                </p>
+              </div>
+              {tasks.length === 0 && (
+                <Button asChild size="sm">
+                  <Link href="/admin/tasks/new"><Plus className="h-4 w-4" /> Post New Task</Link>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] overflow-x-auto">
+              <table className="w-full text-sm min-w-[700px]">
+                <thead>
+                  <tr className="bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
+                    {["Title", "Type", "Coins/task", "Slots", "Status", "Actions"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 font-medium text-[var(--text-secondary)] whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-default)]">
+                  {filtered.map((task) => (
+                    <tr key={task.id} className="hover:bg-[var(--surface-subtle)] transition-colors">
+                      <td className="px-4 py-3 font-medium text-[var(--text-primary)] max-w-[200px]">
+                        <p className="truncate">{task.title}</p>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">{task.task_type ?? "—"}</td>
+                      <td className="px-4 py-3 text-[var(--brand-500)] font-medium whitespace-nowrap">
+                        {task.pay_per_task ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">
+                        {task.filled_slots ?? 0} / {task.total_slots ?? "∞"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[task.status] ?? ""}`}>
+                          {task.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <Button variant="secondary" size="sm" asChild>
+                            <Link href={`/admin/tasks/${task.id}/edit`}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                          {task.status === "active" ? (
+                            <Button variant="secondary" size="sm" disabled={updating === task.id}
+                              onClick={() => updateStatus(task.id, "paused")}>
+                              <Pause className="h-3.5 w-3.5" /> Pause
+                            </Button>
+                          ) : task.status === "paused" ? (
+                            <Button variant="secondary" size="sm" disabled={updating === task.id}
+                              onClick={() => updateStatus(task.id, "active")}>
+                              ▶ Resume
+                            </Button>
+                          ) : null}
+                          {task.status !== "archived" && (
+                            <Button variant="destructive" size="sm" disabled={updating === task.id}
+                              onClick={() => updateStatus(task.id, "archived")}>
+                              <X className="h-3.5 w-3.5" /> Close
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
+    </div>
+  );
+}
+
+function ApprovalBar({ rate }: { rate: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden min-w-[60px]">
+        <div
+          className="h-full rounded-full bg-green-500 transition-all"
+          style={{ width: `${rate}%` }}
+        />
+      </div>
+      <span className="text-xs font-medium text-[var(--text-secondary)] w-9 text-right">{rate}%</span>
+    </div>
+  );
+}
+
+function AnalyticsView({ stats, loading, error }: {
+  stats: TaskStat[] | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-500)]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-5 py-4">
+        <p className="text-sm text-red-400">{error}</p>
+      </div>
+    );
+  }
+
+  if (!stats || stats.length === 0) {
+    return (
+      <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] py-16 flex flex-col items-center gap-2 text-center">
+        <BarChart2 className="h-10 w-10 text-[var(--text-muted)]" />
+        <p className="font-semibold text-[var(--text-primary)]">No submissions yet</p>
+        <p className="text-sm text-[var(--text-secondary)]">Analytics will appear once contributors start submitting tasks.</p>
+      </div>
+    );
+  }
+
+  const totalSubmissions = stats.reduce((s, t) => s + t.total, 0);
+  const totalApproved    = stats.reduce((s, t) => s + t.approved, 0);
+  const overallRate      = totalSubmissions > 0 ? Math.round((totalApproved / totalSubmissions) * 100) : 0;
+  const reviewedStats    = stats.filter((t) => t.avg_review_hours !== null);
+  const avgReviewHrs     = reviewedStats.length > 0
+    ? Math.round(reviewedStats.reduce((s, t) => s + (t.avg_review_hours ?? 0), 0) / reviewedStats.length * 10) / 10
+    : null;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: "Total Submissions", value: totalSubmissions.toLocaleString() },
+          { label: "Total Approved",    value: totalApproved.toLocaleString() },
+          { label: "Overall Approval Rate", value: `${overallRate}%` },
+          { label: "Avg Review Time",   value: avgReviewHrs != null ? `${avgReviewHrs}h` : "—" },
+        ].map((tile) => (
+          <div key={tile.label} className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
+            <p className="text-xs text-[var(--text-muted)] mb-1">{tile.label}</p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">{tile.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-task breakdown */}
+      <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
+          <thead>
+            <tr className="bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
+              {["Task", "Type", "Submissions", "Approved", "Rejected", "Pending", "Approval Rate", "Avg Review"].map((h) => (
+                <th key={h} className="text-left px-4 py-3 font-medium text-[var(--text-secondary)] whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--border-default)]">
+            {stats.map((s) => (
+              <tr key={s.task_id} className="hover:bg-[var(--surface-subtle)] transition-colors">
+                <td className="px-4 py-3 font-medium text-[var(--text-primary)] max-w-[180px]">
+                  <p className="truncate">{s.task_title}</p>
+                </td>
+                <td className="px-4 py-3 text-[var(--text-muted)] whitespace-nowrap text-xs">{s.task_type ?? "—"}</td>
+                <td className="px-4 py-3 text-[var(--text-primary)] font-medium">{s.total}</td>
+                <td className="px-4 py-3 text-green-400 font-medium">{s.approved}</td>
+                <td className="px-4 py-3 text-red-400 font-medium">{s.rejected}</td>
+                <td className="px-4 py-3 text-yellow-400 font-medium">{s.pending}</td>
+                <td className="px-4 py-3 min-w-[130px]">
+                  <ApprovalBar rate={s.approval_rate} />
+                </td>
+                <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">
+                  {s.avg_review_hours != null ? `${s.avg_review_hours}h` : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
