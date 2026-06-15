@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatCard } from "@/components/ui/stat-card";
-import { ArrowRight, Bell, ClipboardList, Layers, ShoppingBag, Coins } from "lucide-react";
+import { ArrowRight, Bell, ClipboardList, Layers, ShoppingBag, Coins, X, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +20,13 @@ interface Task {
   pay_per_task: number | null;
 }
 
+interface AnnouncementNotif {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+}
+
 const QUICK_ACTIONS = [
   { icon: ClipboardList, label: "Browse Tasks",  href: "/dashboard/tasks",       desc: "Find and start new tasks" },
   { icon: Layers,        label: "Offerwalls",     href: "/dashboard/offerwalls",  desc: "Earn via partner offers" },
@@ -27,11 +34,13 @@ const QUICK_ACTIONS = [
 ];
 
 export default function DashboardHome() {
-  const [profile, setProfile]         = useState<Profile | null>(null);
-  const [tasks, setTasks]             = useState<Task[]>([]);
-  const [tasksDone, setTasksDone]     = useState<number>(0);
+  const [profile, setProfile]           = useState<Profile | null>(null);
+  const [tasks, setTasks]               = useState<Task[]>([]);
+  const [tasksDone, setTasksDone]       = useState<number>(0);
   const [approvalRate, setApprovalRate] = useState<number | null>(null);
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading]           = useState(true);
+  const [banner, setBanner]             = useState<AnnouncementNotif | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -44,34 +53,22 @@ export default function DashboardHome() {
         { data: mySubmissions },
         { count: approvedCount },
         { count: reviewedCount },
+        { data: announcementData },
       ] = await Promise.all([
+        supabase.from("profiles").select("full_name, nexcoins").eq("id", user.id).single(),
+        supabase.from("tasks").select("id, title, description, task_type, pay_per_task").eq("status", "active").limit(20),
+        supabase.from("submissions").select("task_id").eq("contributor_id", user.id),
+        supabase.from("submissions").select("*", { count: "exact", head: true }).eq("contributor_id", user.id).eq("status", "approved"),
+        supabase.from("submissions").select("*", { count: "exact", head: true }).eq("contributor_id", user.id).in("status", ["approved", "rejected"]),
+        // Latest unread announcement notification
         supabase
-          .from("profiles")
-          .select("full_name, nexcoins")
-          .eq("id", user.id)
-          .single(),
-        supabase
-          .from("tasks")
-          .select("id, title, description, task_type, pay_per_task")
-          .eq("status", "active")
-          .limit(20),
-        // Which tasks has this contributor already started?
-        supabase
-          .from("submissions")
-          .select("task_id")
-          .eq("contributor_id", user.id),
-        // Tasks Done = approved submissions
-        supabase
-          .from("submissions")
-          .select("*", { count: "exact", head: true })
-          .eq("contributor_id", user.id)
-          .eq("status", "approved"),
-        // Approval Rate denominator = all reviewed (approved + rejected)
-        supabase
-          .from("submissions")
-          .select("*", { count: "exact", head: true })
-          .eq("contributor_id", user.id)
-          .in("status", ["approved", "rejected"]),
+          .from("notifications")
+          .select("id, title, message, created_at")
+          .eq("user_id", user.id)
+          .eq("type", "announcement")
+          .eq("is_read", false)
+          .order("created_at", { ascending: false })
+          .limit(1),
       ]);
 
       const startedIds = new Set((mySubmissions ?? []).map((s: { task_id: string }) => s.task_id));
@@ -85,26 +82,50 @@ export default function DashboardHome() {
           ? Math.round(((approvedCount ?? 0) / reviewedCount) * 100)
           : null
       );
+
+      const notif = (announcementData as unknown as AnnouncementNotif[] | null)?.[0] ?? null;
+      setBanner(notif);
       setLoading(false);
     }
     fetchData();
   }, []);
 
+  async function dismissBanner() {
+    setBannerDismissed(true);
+    if (banner?.id) {
+      await supabase.from("notifications").update({ is_read: true }).eq("id", banner.id);
+    }
+  }
+
   const displayName = profile?.full_name ?? "there";
+  const showBanner  = banner && !bannerDismissed;
+
+  // Strip the "📢 " prefix that admin adds when creating announcement notifications
+  const bannerTitle   = banner?.title?.replace(/^📢\s*/, "") ?? "";
+  const bannerMessage = banner?.message ?? "";
 
   return (
     <div className="space-y-8">
 
       {/* Announcement Banner */}
-      <div className="rounded-xl border border-[var(--brand-200)] bg-[var(--brand-50)] p-4 flex items-start gap-3">
-        <Bell className="h-4 w-4 text-[var(--brand-500)] flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-medium text-[var(--brand-500)]">Welcome to NexGuild!</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-            We are growing our contributor community. New task types and higher-paying projects are being added every week.
-          </p>
+      {showBanner && (
+        <div className="rounded-xl border border-[#14b8a6]/30 bg-gradient-to-r from-[#14b8a6]/10 to-[#f59e0b]/5 p-4 flex items-start gap-3 relative">
+          <div className="h-8 w-8 rounded-lg bg-[#14b8a6]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Megaphone className="h-4 w-4 text-[#14b8a6]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{bannerTitle}</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-0.5 leading-relaxed">{bannerMessage}</p>
+          </div>
+          <button
+            onClick={dismissBanner}
+            className="flex-shrink-0 p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors"
+            aria-label="Dismiss announcement"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-      </div>
+      )}
 
       {/* Welcome + Stats */}
       <div>

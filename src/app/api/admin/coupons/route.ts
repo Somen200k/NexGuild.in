@@ -9,7 +9,8 @@ async function verifyAdmin(req: NextRequest): Promise<SupabaseClient | null> {
   const { data: { user }, error } = await admin.auth.getUser(token);
   if (error || !user) return null;
   const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  if ((profile as { role: string } | null)?.role !== "admin") return null;
+  const role = (profile as { role: string } | null)?.role;
+  if (role !== "admin" && role !== "owner") return null;
   return admin;
 }
 

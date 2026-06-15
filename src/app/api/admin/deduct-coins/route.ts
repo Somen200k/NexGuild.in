@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data: caller } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  if ((caller as { role: string } | null)?.role !== "admin") {
+  if ((caller as { role: string } | null)?.role !== "admin" && (caller as { role: string } | null)?.role !== "owner") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

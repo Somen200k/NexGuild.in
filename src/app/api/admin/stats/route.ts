@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     .select("role")
     .eq("id", user.id)
     .single();
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (profile?.role !== "admin" && profile?.role !== "owner") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // All queries run with service_role — no RLS restrictions
   const [

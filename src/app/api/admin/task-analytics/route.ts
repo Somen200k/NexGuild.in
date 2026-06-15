@@ -21,7 +21,7 @@ async function verifyAdmin(req: NextRequest) {
   if (!user) return null;
   const srv = createServerClient();
   const { data: profile } = await srv.from("profiles").select("role").eq("id", user.id).single();
-  return profile?.role === "admin" ? user : null;
+  return (profile?.role === "admin" || profile?.role === "owner") ? user : null;
 }
 
 export interface TaskStat {

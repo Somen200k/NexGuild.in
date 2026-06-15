@@ -8,7 +8,8 @@ async function verifyAdmin(req: NextRequest) {
   const { data: { user } } = await admin.auth.getUser(token);
   if (!user) return null;
   const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  if ((profile as { role: string } | null)?.role !== "admin") return null;
+  const role = (profile as { role: string } | null)?.role;
+  if (role !== "admin" && role !== "owner") return null;
   return { admin, userId: user.id };
 }
 
