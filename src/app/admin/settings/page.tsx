@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, Loader2, X, CheckCircle2, Tag, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, Loader2, X, CheckCircle2, Tag, ToggleLeft, ToggleRight, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 
@@ -25,14 +25,26 @@ interface Coupon {
   created_at: string;
 }
 
-function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+type MaintenanceSections = Record<string, boolean>;
+
+const MAINTENANCE_SECTIONS: { key: string; label: string; desc: string }[] = [
+  { key: "org",          label: "Organization Side",    desc: "Client-facing pages (/services, /for-organizations, /client)" },
+  { key: "contributor",  label: "Contributor Side",     desc: "Earn pages (/earn, /opportunities, /how-it-works, /faq)" },
+  { key: "dashboard",    label: "Dashboard",            desc: "Contributor dashboard (/dashboard/*)" },
+  { key: "store",        label: "Store",                desc: "NexGuild store (/dashboard/store)" },
+  { key: "offerwalls",   label: "Offerwalls",           desc: "Offerwall section (/dashboard/offerwalls)" },
+  { key: "signup",       label: "New Registrations",    desc: "Prevent new signups (/signup)" },
+];
+
+function Toggle({ on, onToggle, disabled }: { on: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <button
       role="switch"
       aria-checked={on}
       onClick={onToggle}
+      disabled={disabled}
       style={{ backgroundColor: on ? "#14b8a6" : "#4b5563", transition: "background-color 0.2s ease" }}
-      className="h-6 w-11 rounded-full relative flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[#14b8a6] focus:ring-offset-2 focus:ring-offset-[var(--surface-card)]"
+      className="h-6 w-11 rounded-full relative flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[#14b8a6] focus:ring-offset-2 focus:ring-offset-[var(--surface-card)] disabled:opacity-50"
     >
       <span
         style={{ transform: on ? "translateX(22px)" : "translateX(2px)", transition: "transform 0.2s ease" }}
@@ -44,10 +56,12 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 
 export default function AdminSettingsPage() {
   const tokenRef = useRef<string | null>(null);
+  const [currentRole, setCurrentRole] = useState<string | null>(null);
 
   const [admins, setAdmins]               = useState<AdminUser[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
-  const [maintenance, setMaintenance]     = useState(false);
+  const [maintenanceSections, setMaintenanceSections] = useState<MaintenanceSections>({});
+  const [togglingSection, setTogglingSection] = useState<string | null>(null);
 
   // Coupons
   const [coupons, setCoupons]               = useState<Coupon[]>([]);
@@ -78,15 +92,22 @@ export default function AdminSettingsPage() {
       tokenRef.current = session?.access_token ?? null;
       if (!session) return;
 
+      // Get current user's role for owner-check
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        setCurrentRole((profile as { role: string } | null)?.role ?? null);
+      }
+
       const [settingsRes, couponsRes] = await Promise.all([
         fetch("/api/admin/settings", { headers: { Authorization: `Bearer ${session.access_token}` } }),
         fetch("/api/admin/coupons",  { headers: { Authorization: `Bearer ${session.access_token}` } }),
       ]);
 
       if (settingsRes.ok) {
-        const { admins: adminsData, maintenance: m } = await settingsRes.json() as { admins: AdminUser[]; maintenance: boolean };
-        setAdmins(adminsData ?? []);
-        setMaintenance(m ?? false);
+        const d = await settingsRes.json() as { admins: AdminUser[]; maintenanceSections: MaintenanceSections };
+        setAdmins(d.admins ?? []);
+        setMaintenanceSections(d.maintenanceSections ?? {});
       }
       setLoadingAdmins(false);
 
@@ -98,6 +119,18 @@ export default function AdminSettingsPage() {
     }
     load();
   }, []);
+
+  async function toggleSection(section: string) {
+    const next = !maintenanceSections[section];
+    setMaintenanceSections((prev) => ({ ...prev, [section]: next }));
+    setTogglingSection(section);
+    await fetch("/api/admin/settings", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+      body:    JSON.stringify({ action: "maintenance_section", section, value: next }),
+    });
+    setTogglingSection(null);
+  }
 
   async function promoteToAdmin(e: React.FormEvent) {
     e.preventDefault();
@@ -116,12 +149,12 @@ export default function AdminSettingsPage() {
   }
 
   async function demoteAdmin(id: string) {
-    await fetch("/api/admin/settings", {
+    const res = await fetch("/api/admin/settings", {
       method:  "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
       body:    JSON.stringify({ action: "demote", id }),
     });
-    setAdmins((prev) => prev.filter((a) => a.id !== id));
+    if (res.ok) setAdmins((prev) => prev.filter((a) => a.id !== id));
   }
 
   async function toggleCoupon(id: string, current: boolean) {
@@ -177,6 +210,8 @@ export default function AdminSettingsPage() {
     setCreatingCoupon(false);
   }
 
+  const isOwner = currentRole === "owner";
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -203,23 +238,37 @@ export default function AdminSettingsPage() {
             <span className="text-sm font-semibold text-[var(--text-primary)] flex-shrink-0">{item.value}</span>
           </div>
         ))}
-        <div className="px-6 py-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-[var(--text-primary)]">Maintenance Mode</p>
-            <p className="text-xs text-[var(--text-muted)]">
-              {maintenance ? "Dashboard is in maintenance mode — contributors cannot access it." : "Dashboard is live and accessible to contributors."}
-            </p>
-          </div>
-          <Toggle on={maintenance} onToggle={async () => {
-            const next = !maintenance;
-            setMaintenance(next);
-            await fetch("/api/admin/settings", {
-              method:  "PATCH",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
-              body:    JSON.stringify({ action: "maintenance", value: next }),
-            });
-          }} />
+      </section>
+
+      {/* Section Maintenance */}
+      <section className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] divide-y divide-[var(--border-default)]">
+        <div className="px-6 py-4">
+          <h2 className="font-semibold text-[var(--text-primary)]">Section Maintenance</h2>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Toggle maintenance mode per platform section. Active sections show a maintenance page to visitors.</p>
         </div>
+        {MAINTENANCE_SECTIONS.map(({ key, label, desc }) => {
+          const on = maintenanceSections[key] ?? false;
+          return (
+            <div key={key} className="px-6 py-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
+                  {on && (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--text-muted)]">{desc}</p>
+              </div>
+              <Toggle
+                on={on}
+                onToggle={() => toggleSection(key)}
+                disabled={togglingSection === key}
+              />
+            </div>
+          );
+        })}
       </section>
 
       {/* Admin Users */}
@@ -227,11 +276,15 @@ export default function AdminSettingsPage() {
         <div className="px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-[var(--text-primary)]">Admin Users</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">Promote a contributor to admin by their email.</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              {isOwner ? "Promote a contributor to admin by their email." : "Only the owner can add or remove admins."}
+            </p>
           </div>
-          <Button size="sm" variant="secondary" onClick={() => { setShowInvite(true); setInviteOk(false); setInviteErr(null); setInviteEmail(""); }}>
-            <Plus className="h-3.5 w-3.5" /> Add Admin
-          </Button>
+          {isOwner && (
+            <Button size="sm" variant="secondary" onClick={() => { setShowInvite(true); setInviteOk(false); setInviteErr(null); setInviteEmail(""); }}>
+              <Plus className="h-3.5 w-3.5" /> Add Admin
+            </Button>
+          )}
         </div>
         {loadingAdmins ? (
           <div className="px-6 py-6 flex items-center gap-2 text-sm text-[var(--text-muted)]">
@@ -240,19 +293,31 @@ export default function AdminSettingsPage() {
         ) : admins.length === 0 ? (
           <div className="px-6 py-6 text-sm text-[var(--text-muted)]">No admins found.</div>
         ) : (
-          admins.map((admin) => (
-            <div key={admin.id} className="px-6 py-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)]">{admin.full_name ?? "—"}</p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  {admin.email} · Admin · Since {new Date(admin.joined_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
-                </p>
+          admins.map((admin) => {
+            const isAdminOwner = admin.role === "owner";
+            return (
+              <div key={admin.id} className="px-6 py-4 flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{admin.full_name ?? "—"}</p>
+                    {isAdminOwner && (
+                      <span className="flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">
+                        <Crown className="h-3 w-3" /> Owner
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {admin.email} · {isAdminOwner ? "Owner" : "Admin"} · Since {new Date(admin.joined_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                  </p>
+                </div>
+                {isOwner && !isAdminOwner && (
+                  <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => demoteAdmin(admin.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
-              <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => demoteAdmin(admin.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          ))
+            );
+          })
         )}
       </section>
 

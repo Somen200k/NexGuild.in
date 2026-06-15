@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell, Plus, Loader2, CheckCircle2, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -23,6 +23,7 @@ const TARGET_LABELS: Record<string, string> = {
 };
 
 export default function AdminAnnouncementsPage() {
+  const tokenRef = useRef<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading]   = useState(true);
   const [title, setTitle]       = useState("");
@@ -31,12 +32,11 @@ export default function AdminAnnouncementsPage() {
   const [sending, setSending]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [sent, setSent]         = useState(false);
-  const [userId, setUserId]     = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUserId(user?.id ?? null);
+      const { data: { session } } = await supabase.auth.getSession();
+      tokenRef.current = session?.access_token ?? null;
 
       const { data } = await supabase
         .from("announcements")
@@ -58,44 +58,22 @@ export default function AdminAnnouncementsPage() {
     setSending(true);
     setError(null);
 
-    const { data: ann, error: insertErr } = await supabase
-      .from("announcements")
-      .insert({ title: title.trim(), message: message.trim(), target, created_by: userId })
-      .select("id, title, message, target, created_at")
-      .single();
+    const res = await fetch("/api/admin/announcements", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+      body:    JSON.stringify({ title: title.trim(), message: message.trim(), target }),
+    });
+    const data = await res.json() as { ok?: boolean; announcement?: Announcement; error?: string };
 
-    if (insertErr) { setError(insertErr.message); setSending(false); return; }
-
-    // Fetch all target contributor IDs and create notifications
-    // This uses a server action via Supabase service role isn't available client-side,
-    // so we insert notifications for all profiles via the admin policy (admins can insert)
-    const { data: targetUsers } = await supabase
-      .from("profiles")
-      .select("id, status, joined_at")
-      .eq("role", "contributor");
-
-    if (targetUsers) {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const eligible = targetUsers.filter((u: { id: string; status: string; joined_at: string }) => {
-        if (target === "all") return true;
-        if (target === "active") return u.status === "active";
-        if (target === "new") return u.joined_at >= thirtyDaysAgo;
-        return true;
-      });
-
-      if (eligible.length > 0) {
-        await supabase.from("notifications").insert(
-          eligible.map((u: { id: string }) => ({
-            user_id: u.id,
-            title: `📢 ${title.trim()}`,
-            message: message.trim(),
-            type: "announcement",
-          }))
-        );
-      }
+    if (!res.ok || data.error) {
+      setError(data.error ?? "Failed to send announcement.");
+      setSending(false);
+      return;
     }
 
-    setAnnouncements((prev) => [ann as unknown as Announcement, ...prev]);
+    if (data.announcement) {
+      setAnnouncements((prev) => [data.announcement!, ...prev]);
+    }
     setTitle("");
     setMessage("");
     setTarget("all");

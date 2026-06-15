@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 
-async function verifyAdmin(req: NextRequest) {
+async function verifyAdminOrOwner(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   if (!token) return null;
   const admin = createServerClient();
   const { data: { user } } = await admin.auth.getUser(token);
   if (!user) return null;
   const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  if ((profile as { role: string } | null)?.role !== "admin") return null;
-  return { admin, userId: user.id };
+  const role = (profile as { role: string } | null)?.role;
+  if (role !== "admin" && role !== "owner") return null;
+  return { admin, userId: user.id, callerRole: role };
 }
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await verifyAdmin(req);
+  const ctx = await verifyAdminOrOwner(req);
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
@@ -29,7 +30,7 @@ export async function GET(
     { data: tickets },
   ] = await Promise.all([
     admin.from("profiles")
-      .select("id, full_name, email, country, status, nexcoins, joined_at")
+      .select("id, full_name, email, country, status, nexcoins, joined_at, role")
       .eq("id", id)
       .single(),
     admin.from("submissions")
@@ -63,15 +64,19 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const ctx = await verifyAdmin(req);
+  const ctx = await verifyAdminOrOwner(req);
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const { admin } = ctx;
 
-  // Delete profile first (FK from profile to auth.users is parent→child, so safe to delete profile then auth user)
-  await admin.from("profiles").delete().eq("id", id);
+  // Protect owner from deletion
+  const { data: target } = await admin.from("profiles").select("role").eq("id", id).single();
+  if ((target as { role: string } | null)?.role === "owner") {
+    return NextResponse.json({ error: "Cannot delete the owner account." }, { status: 403 });
+  }
 
+  await admin.from("profiles").delete().eq("id", id);
   const { error } = await admin.auth.admin.deleteUser(id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
