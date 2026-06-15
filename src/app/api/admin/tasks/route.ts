@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
     const {
       title, task_type, description, requirements,
       pay_per_task, total_slots, deadline,
-      assignment_required, assignment_type, status,
+      assignment_required, assignment_type,
+      required_language, required_skills,
+      is_private, is_featured,
+      validation_time, payment_time,
+      terms, steps,
+      status,
     } = body as {
       title: string;
       task_type: string;
@@ -38,6 +43,14 @@ export async function POST(req: NextRequest) {
       deadline?: string;
       assignment_required?: boolean;
       assignment_type?: string;
+      required_language?: string;
+      required_skills?: string[];
+      is_private?: boolean;
+      is_featured?: boolean;
+      validation_time?: string;
+      payment_time?: string;
+      terms?: string;
+      steps?: object[];
       status: "active" | "draft";
     };
 
@@ -58,6 +71,14 @@ export async function POST(req: NextRequest) {
         deadline: deadline || null,
         assignment_required: assignment_required ?? false,
         assignment_type: assignment_required ? (assignment_type ?? "quiz") : null,
+        required_language: required_language ?? "Any",
+        required_skills: required_skills ?? [],
+        is_private: is_private ?? false,
+        is_featured: is_featured ?? false,
+        validation_time: validation_time ?? "48 hours",
+        payment_time: payment_time ?? "72 hours",
+        terms: terms?.trim() || null,
+        steps: steps ?? [],
         status,
       })
       .select("id, title, task_type, pay_per_task, total_slots")
