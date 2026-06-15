@@ -17,10 +17,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Keep guard in sync if session expires or user signs out
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Redirect to /earn on explicit signout; /login if session expires
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        router.replace("/login");
+        router.replace(event === "SIGNED_OUT" ? "/earn" : "/login");
       }
     });
 

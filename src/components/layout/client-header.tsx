@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { NexGuildLogo } from "@/components/ui/nexguild-logo";
 
 const NAV_LINKS = [
-  { label: "Home",         href: "/" },
+  { label: "Home",         href: "/client" },
   { label: "Services",     href: "/services" },
   { label: "How It Works", href: "/client/how-it-works" },
   { label: "About",        href: "/about" },
@@ -45,7 +45,7 @@ export function ClientHeader() {
 
           {/* Logo */}
           <div className="flex items-center flex-shrink-0">
-            <NexGuildLogo theme="gold" />
+            <NexGuildLogo theme="gold" href="/client" />
           </div>
 
           {/* Desktop Nav */}
@@ -111,7 +111,7 @@ export function ClientHeader() {
         )}
       >
         <div className="flex items-center justify-between px-6 h-16 border-b border-[#222222]">
-          <NexGuildLogo theme="gold" />
+          <NexGuildLogo theme="gold" href="/client" />
           <button
             onClick={() => setMobileOpen(false)}
             className="h-9 w-9 flex items-center justify-center rounded-md text-white/60 hover:bg-white/5"

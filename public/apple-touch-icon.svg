@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" rx="38" fill="#0d1f38"/>
+  <g transform="translate(90,95)">
+    <!-- centre person -->
+    <circle cx="0" cy="-34" r="26" fill="#14b8a6"/>
+    <rect x="-26" y="0" width="52" height="46" rx="26" fill="#14b8a6"/>
+    <!-- left person -->
+    <circle cx="-57" cy="-18" r="19" fill="#14b8a6" opacity="0.75"/>
+    <rect x="-76" y="11" width="38" height="34" rx="19" fill="#14b8a6" opacity="0.75"/>
+    <!-- right person -->
+    <circle cx="57" cy="-18" r="19" fill="#14b8a6" opacity="0.75"/>
+    <rect x="38" y="11" width="38" height="34" rx="19" fill="#14b8a6" opacity="0.75"/>
+  </g>
+</svg>
