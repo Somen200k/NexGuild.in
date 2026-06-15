@@ -32,6 +32,22 @@ const TYPE_COLORS: Record<string, string> = {
   support:              "text-blue-400",
   new_task:             "text-blue-400",
   announcement:         "text-[var(--brand-500)]",
+  bonus_coins:          "text-amber-400",
+  system:               "text-[var(--text-secondary)]",
+};
+
+const TYPE_HREF: Record<string, string> = {
+  submission_approved:  "/dashboard/earnings",
+  submission_rejected:  "/dashboard/tasks",
+  assignment_approved:  "/dashboard/earnings",
+  assignment_rejected:  "/dashboard/tasks",
+  voucher_delivered:    "/dashboard/vouchers",
+  voucher:              "/dashboard/vouchers",
+  support:              "/dashboard/support",
+  new_task:             "/dashboard/tasks",
+  announcement:         "/dashboard/announcements",
+  bonus_coins:          "/dashboard/earnings",
+  system:               "/dashboard",
 };
 
 interface Notification {
@@ -219,30 +235,33 @@ export function DashboardHeader() {
                   </div>
                 ) : (
                   <ul className="divide-y divide-[var(--border-default)]">
-                    {notifications.map((n) => (
-                      <li
-                        key={n.id}
-                        onClick={() => markRead(n.id)}
-                        className={`px-4 py-3 cursor-pointer hover:bg-[var(--surface-subtle)] transition-colors ${!n.is_read ? "bg-[var(--brand-500)]/5" : ""}`}
-                      >
-                        <div className="flex items-start gap-2">
-                          {!n.is_read && (
-                            <span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--brand-500)] flex-shrink-0" />
-                          )}
-                          <div className={!n.is_read ? "" : "ml-4"}>
-                            <p className={`text-xs font-semibold ${n.type ? (TYPE_COLORS[n.type] ?? "text-[var(--text-primary)]") : "text-[var(--text-primary)]"}`}>
-                              {n.title}
-                            </p>
-                            {n.message && (
-                              <p className="text-xs text-[var(--text-muted)] mt-0.5 line-clamp-2">{n.message}</p>
+                    {notifications.map((n) => {
+                      const href = n.type ? (TYPE_HREF[n.type] ?? "/dashboard") : "/dashboard";
+                      return (
+                        <li key={n.id}>
+                          <Link
+                            href={href}
+                            onClick={() => { markRead(n.id); setOpen(false); }}
+                            className={`flex items-start gap-2 px-4 py-3 hover:bg-[var(--surface-subtle)] transition-colors ${!n.is_read ? "bg-[var(--brand-500)]/5" : ""}`}
+                          >
+                            {!n.is_read && (
+                              <span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--brand-500)] flex-shrink-0" />
                             )}
-                            <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                              {new Date(n.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
+                            <div className={!n.is_read ? "" : "ml-4"}>
+                              <p className={`text-xs font-semibold ${n.type ? (TYPE_COLORS[n.type] ?? "text-[var(--text-primary)]") : "text-[var(--text-primary)]"}`}>
+                                {n.title}
+                              </p>
+                              {n.message && (
+                                <p className="text-xs text-[var(--text-muted)] mt-0.5 line-clamp-2">{n.message}</p>
+                              )}
+                              <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                                {new Date(n.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
