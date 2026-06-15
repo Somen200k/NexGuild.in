@@ -11,7 +11,6 @@ interface Announcement {
   message: string;
   target: string;
   created_at: string;
-  profiles: { full_name: string | null } | null;
 }
 
 const inputClass = "w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent transition-colors";
@@ -41,7 +40,7 @@ export default function AdminAnnouncementsPage() {
 
       const { data } = await supabase
         .from("announcements")
-        .select("id, title, message, target, created_at, profiles(full_name)")
+        .select("id, title, message, target, created_at")
         .order("created_at", { ascending: false });
 
       setAnnouncements((data as unknown as Announcement[]) ?? []);
@@ -62,7 +61,7 @@ export default function AdminAnnouncementsPage() {
     const { data: ann, error: insertErr } = await supabase
       .from("announcements")
       .insert({ title: title.trim(), message: message.trim(), target, created_by: userId })
-      .select("id, title, message, target, created_at, profiles(full_name)")
+      .select("id, title, message, target, created_at")
       .single();
 
     if (insertErr) { setError(insertErr.message); setSending(false); return; }

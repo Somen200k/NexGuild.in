@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Users, Search, Eye, Ban, Coins, Loader2, X, CheckCircle2 } from "lucide-react";
+import { Users, Search, Eye, Ban, Coins, Loader2, X, CheckCircle2, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 
@@ -30,8 +30,9 @@ export default function ContributorsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [banning, setBanning]           = useState<string | null>(null);
 
-  // Send Coins modal
+  // Send / Deduct Coins modal
   const [sendTarget, setSendTarget]   = useState<Contributor | null>(null);
+  const [sendMode, setSendMode]       = useState<"send" | "deduct">("send");
   const [sendAmount, setSendAmount]   = useState("");
   const [sendReason, setSendReason]   = useState("");
   const [sending, setSending]         = useState(false);
@@ -72,8 +73,9 @@ export default function ContributorsPage() {
     setBanning(null);
   }
 
-  function openSendCoins(c: Contributor) {
+  function openSendCoins(c: Contributor, mode: "send" | "deduct" = "send") {
     setSendTarget(c);
+    setSendMode(mode);
     setSendAmount("");
     setSendReason("");
     setSendErr(null);
@@ -91,20 +93,20 @@ export default function ContributorsPage() {
     setSendErr(null);
 
     try {
-      const res = await fetch("/api/admin/send-coins", {
+      const endpoint = sendMode === "send" ? "/api/admin/send-coins" : "/api/admin/deduct-coins";
+      const res = await fetch(endpoint, {
         method:  "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
         body:    JSON.stringify({ contributorId: sendTarget.id, amount, reason: sendReason.trim() || undefined }),
       });
-      const data = await res.json() as { error?: string; newBalance?: number };
+      const data = await res.json() as { error?: string; newBalance?: number; amountDeducted?: number };
       if (!res.ok) {
-        setSendErr(data.error ?? "Failed to send coins.");
+        setSendErr(data.error ?? `Failed to ${sendMode === "send" ? "send" : "deduct"} coins.`);
       } else {
-        setSentAmount(amount);
+        setSentAmount(sendMode === "deduct" ? (data.amountDeducted ?? amount) : amount);
         setSendOk(true);
-        // Update local nexcoins
         setContributors((prev) =>
-          prev.map((c) => c.id === sendTarget.id ? { ...c, nexcoins: data.newBalance ?? c.nexcoins + amount } : c)
+          prev.map((c) => c.id === sendTarget.id ? { ...c, nexcoins: data.newBalance ?? c.nexcoins } : c)
         );
       }
     } catch {
@@ -212,13 +214,13 @@ export default function ContributorsPage() {
                           <Eye className="h-3.5 w-3.5" /> View
                         </a>
                       </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => openSendCoins(c)}
-                        className="text-[var(--brand-500)] border-[var(--brand-500)]/30 hover:bg-[var(--brand-500)]/10"
-                      >
+                      <Button variant="secondary" size="sm" onClick={() => openSendCoins(c, "send")}
+                        className="text-[var(--brand-500)] border-[var(--brand-500)]/30 hover:bg-[var(--brand-500)]/10">
                         <Coins className="h-3.5 w-3.5" /> Send
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => openSendCoins(c, "deduct")}
+                        className="text-red-400 border-red-500/30 hover:bg-red-500/10">
+                        <Minus className="h-3.5 w-3.5" /> Deduct
                       </Button>
                       <Button
                         variant={c.status === "banned" ? "secondary" : "destructive"}
@@ -245,7 +247,7 @@ export default function ContributorsPage() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <Coins className="h-5 w-5 text-[var(--brand-500)]" />
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Send NexCoins</h2>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">NexCoins</h2>
               </div>
               <button onClick={() => setSendTarget(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <X className="h-5 w-5" />
@@ -256,7 +258,7 @@ export default function ContributorsPage() {
               <div className="flex flex-col items-center gap-3 py-4 text-center">
                 <CheckCircle2 className="h-12 w-12 text-green-400" />
                 <p className="font-semibold text-[var(--text-primary)]">
-                  {sentAmount.toLocaleString()} coins sent!
+                  {sentAmount.toLocaleString()} coins {sendMode === "send" ? "sent!" : "deducted."}
                 </p>
                 <p className="text-sm text-[var(--text-secondary)]">
                   {sendTarget.full_name ?? sendTarget.email} has been notified.
@@ -265,6 +267,19 @@ export default function ContributorsPage() {
               </div>
             ) : (
               <form onSubmit={handleSendCoins} className="space-y-4">
+                {/* Mode toggle */}
+                <div className="flex gap-2">
+                  {(["send", "deduct"] as const).map((m) => (
+                    <button key={m} type="button" onClick={() => setSendMode(m)}
+                      className={`flex-1 py-2 rounded-lg text-sm border font-medium transition-colors ${
+                        sendMode === m
+                          ? m === "send" ? "bg-[var(--brand-500)] text-white border-[var(--brand-500)]" : "bg-red-500 text-white border-red-500"
+                          : "border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--brand-500)]"
+                      }`}>
+                      {m === "send" ? "Send Coins" : "Deduct Coins"}
+                    </button>
+                  ))}
+                </div>
                 {/* Recipient */}
                 <div className="rounded-lg bg-[var(--surface-subtle)] px-4 py-3 flex items-center gap-3">
                   <div className="h-9 w-9 rounded-full bg-[var(--brand-500)]/15 flex items-center justify-center flex-shrink-0">
@@ -316,13 +331,11 @@ export default function ContributorsPage() {
                   <Button type="button" variant="ghost" className="flex-1" onClick={() => setSendTarget(null)}>
                     Cancel
                   </Button>
-                  <Button type="submit" className="flex-1" disabled={sending}>
+                  <Button type="submit" disabled={sending}
+                    className={`flex-1 ${sendMode === "deduct" ? "bg-red-500 hover:bg-red-400 border-0" : ""}`}>
                     {sending
-                      ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sending…</>
-                      : <>
-                          <Coins className="h-4 w-4 mr-1.5" />
-                          Send Coins
-                        </>}
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : sendMode === "send" ? <><Coins className="h-4 w-4 mr-1" />Send Coins</> : <><Minus className="h-4 w-4 mr-1" />Deduct Coins</>}
                   </Button>
                 </div>
               </form>

@@ -73,23 +73,21 @@ export default function AdminSettingsPage() {
   const [couponErr, setCouponErr]           = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("nexguild:maintenance");
-    if (saved !== null) setMaintenance(saved === "true");
-  }, []);
-
-  useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
       const { data: { session } } = await supabase.auth.getSession();
       tokenRef.current = session?.access_token ?? null;
+      if (!session) return;
 
-      const [{ data: profilesData }, couponsRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, role, joined_at").eq("role", "admin").order("joined_at", { ascending: true }),
-        fetch("/api/admin/coupons", { headers: { Authorization: `Bearer ${session?.access_token}` } }),
+      const [settingsRes, couponsRes] = await Promise.all([
+        fetch("/api/admin/settings", { headers: { Authorization: `Bearer ${session.access_token}` } }),
+        fetch("/api/admin/coupons",  { headers: { Authorization: `Bearer ${session.access_token}` } }),
       ]);
 
-      setAdmins((profilesData as AdminUser[]) ?? []);
+      if (settingsRes.ok) {
+        const { admins: adminsData, maintenance: m } = await settingsRes.json() as { admins: AdminUser[]; maintenance: boolean };
+        setAdmins(adminsData ?? []);
+        setMaintenance(m ?? false);
+      }
       setLoadingAdmins(false);
 
       if (couponsRes.ok) {
@@ -105,16 +103,24 @@ export default function AdminSettingsPage() {
     e.preventDefault();
     setInviting(true);
     setInviteErr(null);
-    const { error } = await supabase.from("profiles").update({ role: "admin" }).eq("email", inviteEmail.trim().toLowerCase());
-    if (error) { setInviteErr(error.message); setInviting(false); return; }
-    const { data } = await supabase.from("profiles").select("id, full_name, email, role, joined_at").eq("role", "admin").order("joined_at", { ascending: true });
-    setAdmins((data as AdminUser[]) ?? []);
+    const res = await fetch("/api/admin/settings", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+      body:    JSON.stringify({ action: "promote", email: inviteEmail.trim().toLowerCase() }),
+    });
+    const data = await res.json() as { ok?: boolean; admins?: AdminUser[]; error?: string };
+    if (!res.ok) { setInviteErr(data.error ?? "Failed to promote user."); setInviting(false); return; }
+    setAdmins(data.admins ?? []);
     setInviteOk(true);
     setInviting(false);
   }
 
   async function demoteAdmin(id: string) {
-    await supabase.from("profiles").update({ role: "contributor" }).eq("id", id);
+    await fetch("/api/admin/settings", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+      body:    JSON.stringify({ action: "demote", id }),
+    });
     setAdmins((prev) => prev.filter((a) => a.id !== id));
   }
 
@@ -204,10 +210,14 @@ export default function AdminSettingsPage() {
               {maintenance ? "Dashboard is in maintenance mode — contributors cannot access it." : "Dashboard is live and accessible to contributors."}
             </p>
           </div>
-          <Toggle on={maintenance} onToggle={() => {
+          <Toggle on={maintenance} onToggle={async () => {
             const next = !maintenance;
             setMaintenance(next);
-            localStorage.setItem("nexguild:maintenance", String(next));
+            await fetch("/api/admin/settings", {
+              method:  "PATCH",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+              body:    JSON.stringify({ action: "maintenance", value: next }),
+            });
           }} />
         </div>
       </section>
