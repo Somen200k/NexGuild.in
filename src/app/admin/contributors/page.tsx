@@ -44,12 +44,13 @@ export default function ContributorsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       tokenRef.current = session?.access_token ?? null;
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, country, status, nexcoins, joined_at")
-        .neq("role", "admin")
-        .order("joined_at", { ascending: false });
-      setContributors(data ?? []);
+      const res = await fetch("/api/admin/contributors", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.ok) {
+        const { contributors: data } = await res.json() as { contributors: Contributor[] };
+        setContributors(data ?? []);
+      }
       setLoading(false);
     }
     fetchContributors();
@@ -58,8 +59,12 @@ export default function ContributorsPage() {
   async function toggleBan(contributor: Contributor) {
     const newStatus = contributor.status === "banned" ? "active" : "banned";
     setBanning(contributor.id);
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", contributor.id);
-    if (!error) {
+    const res = await fetch("/api/admin/contributors", {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+      body:    JSON.stringify({ contributorId: contributor.id, status: newStatus }),
+    });
+    if (res.ok) {
       setContributors((prev) =>
         prev.map((c) => c.id === contributor.id ? { ...c, status: newStatus } : c)
       );
