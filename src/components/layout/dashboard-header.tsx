@@ -130,6 +130,16 @@ export function DashboardHeader() {
   // Close dropdowns on route change
   useEffect(() => { setOpen(false); setMenuOpen(false); }, [pathname]);
 
+  // Live avatar sync: profile page dispatches this after a successful upload
+  useEffect(() => {
+    function onAvatarUpdated(e: Event) {
+      const url = (e as CustomEvent<{ url: string }>).detail?.url;
+      if (url) setAvatarUrl(url);
+    }
+    window.addEventListener("nexguild:avatar-updated", onAvatarUpdated);
+    return () => window.removeEventListener("nexguild:avatar-updated", onAvatarUpdated);
+  }, []);
+
   function markAllRead() {
     if (!userIdRef.current) return;
     setUnreadCount(0);

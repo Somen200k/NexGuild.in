@@ -109,6 +109,8 @@ export default function ProfilePage() {
       console.error("[avatar] profile update error:", updateErr.message);
     } else {
       setProfile((prev) => prev ? { ...prev, avatar_url: publicUrl } : prev);
+      // Notify the dashboard header (same tab) so it updates without a page refresh
+      window.dispatchEvent(new CustomEvent("nexguild:avatar-updated", { detail: { url: publicUrl } }));
     }
 
     setUploading(false);
