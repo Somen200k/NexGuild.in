@@ -4,8 +4,8 @@ export default function WithdrawalsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Withdrawals</h1>
-        <p className="text-sm text-[var(--text-secondary)]">Process and track contributor withdrawal requests.</p>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Voucher Redemptions</h1>
+        <p className="text-sm text-[var(--text-secondary)]">Process and track contributor voucher redemption requests.</p>
       </div>
 
       {/* Tabs */}
@@ -29,7 +29,7 @@ export default function WithdrawalsPage() {
         <table className="w-full text-sm min-w-[650px]">
           <thead>
             <tr className="bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
-              {["Contributor","Amount","Method","Requested","Status","Actions"].map((h) => (
+              {["Contributor","NexCoins","Voucher","Requested","Status","Actions"].map((h) => (
                 <th key={h} className="text-left px-4 py-3 font-medium text-[var(--text-secondary)] whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -37,7 +37,7 @@ export default function WithdrawalsPage() {
           <tbody>
             <tr>
               <td colSpan={6} className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
-                No withdrawal requests yet
+                No redemption requests yet
               </td>
             </tr>
           </tbody>

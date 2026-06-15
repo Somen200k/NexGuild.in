@@ -30,21 +30,21 @@ const STEPS = [
   { icon: "✅", title: "Complete Your Profile",    desc: "Set your skills, language, and device capabilities." },
   { icon: "🔎", title: "Browse & Apply for Tasks", desc: "Pick tasks that match your skills and schedule." },
   { icon: "📤", title: "Submit Your Work",         desc: "Complete the task and submit through the dashboard." },
-  { icon: "💸", title: "Withdraw to UPI / Bank",   desc: "Cash out to UPI, bank transfer, or PayPal." },
+  { icon: "🎁", title: "Redeem for Vouchers",       desc: "Exchange NexCoins for Amazon, Flipkart, and more gift vouchers." },
 ];
 
 const WHY_JOIN = [
   { icon: "📱", title: "Work From Phone",         desc: "No laptop needed. Complete most tasks entirely from your smartphone." },
   { icon: "💰", title: "Multiple Income Sources", desc: "Earn from Tasks, Offerwalls, and Referrals — all in one place." },
   { icon: "🏆", title: "Skill Based Levels",      desc: "Grow from Beginner to Expert and unlock higher-paying tasks." },
-  { icon: "⚡", title: "Fast Withdrawals",        desc: "UPI and bank transfers processed within 48 hours." },
+  { icon: "⚡", title: "Instant Vouchers",          desc: "Gift vouchers delivered to your email within 48 hours of redemption." },
 ];
 
 const TRUST_BADGES = [
   { icon: "🔒", label: "Secure Payments" },
   { icon: "📱", label: "Mobile Friendly" },
   { icon: "🇮🇳", label: "India Based" },
-  { icon: "⚡", label: "Fast Withdrawals" },
+  { icon: "⚡", label: "Instant Vouchers" },
 ];
 
 function TypingHeadline() {
@@ -128,7 +128,7 @@ export default function EarnPage() {
           <FadeIn delay={160}>
             <p className="text-lg sm:text-xl text-white/55 leading-relaxed max-w-2xl mx-auto mb-10 text-balance">
               NexGuild connects you with real paid tasks from real organizations.
-              Work from your phone. Get paid to your UPI.
+              Work from your phone. Redeem NexCoins for gift vouchers.
             </p>
           </FadeIn>
 
@@ -211,7 +211,7 @@ export default function EarnPage() {
                 How It Works
               </h2>
               <p className="text-white/50 text-lg max-w-lg mx-auto">
-                Five simple steps from sign-up to your first withdrawal.
+                Five simple steps from sign-up to your first voucher redemption.
               </p>
             </div>
           </FadeIn>

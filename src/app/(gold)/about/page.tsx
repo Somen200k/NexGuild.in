@@ -23,11 +23,11 @@ const DIFFERENTIATORS = [
   },
   {
     title: "Transparent Compensation",
-    desc: "Contributors see the payout before they start. No bait-and-switch, no deductions after the fact.",
+    desc: "Contributors see the NexCoins reward before they start. No bait-and-switch, no deductions after the fact.",
   },
   {
     title: "Quality Over Volume",
-    desc: "Submissions are reviewed before payouts are issued. We reward accuracy and effort, not just quantity.",
+    desc: "Submissions are reviewed before NexCoins are awarded. We reward accuracy and effort, not just quantity.",
   },
 ];
 

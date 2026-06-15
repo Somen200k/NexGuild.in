@@ -36,9 +36,9 @@ const STEPS = [
     body: "Follow the task instructions, complete the work, and submit. Your submission enters our review queue immediately.",
   },
   {
-    icon: "💸",
-    title: "Withdraw to UPI / Bank",
-    body: "Once your available balance meets the minimum threshold, request a withdrawal via UPI, Bank Transfer, or PayPal.",
+    icon: "🎁",
+    title: "Redeem for Vouchers",
+    body: "Once you have enough NexCoins, visit the Store and redeem them for gift vouchers from Amazon, Flipkart, Paytm, and more.",
   },
 ];
 
@@ -46,9 +46,9 @@ const FAQS = [
   { q: "Is there a fee to join NexGuild?",           a: "No. Signing up is completely free. NexGuild earns through service fees from organizations — contributors keep what they earn from tasks." },
   { q: "How long does it take to get approved?",     a: "Approval times vary by task type. Micro-tasks may be reviewed within 24 hours. Audio, content, and survey tasks typically take 1–3 business days." },
   { q: "What happens if my submission is rejected?", a: "You will receive a notification with feedback explaining the reason. Depending on the task, you may be able to revise and resubmit." },
-  { q: "How quickly can I withdraw my earnings?",    a: "Withdrawals are processed within 1–3 business days after your request. New accounts may have a short hold period before their first withdrawal." },
+  { q: "How quickly are vouchers delivered?",        a: "Vouchers are delivered to your registered email within 48 hours of your redemption request being processed." },
   { q: "Which countries can join?",                  a: "NexGuild is open globally. Most tasks are open to contributors in India. Some tasks may restrict participation by country based on organization requirements." },
-  { q: "What payment methods are available?",        a: "Contributors can withdraw via UPI (India), Bank Transfer (India), and PayPal (global). More methods will be added over time." },
+  { q: "How do I redeem NexCoins?",                  a: "Visit the Store in your dashboard and choose from Amazon, Flipkart, Paytm, PhonePe, and other gift vouchers. Select a voucher and confirm your redemption." },
 ];
 
 export default function HowItWorksPage() {
@@ -77,8 +77,8 @@ export default function HowItWorksPage() {
               How It Works
             </h1>
             <p className="text-lg text-white/55 max-w-xl mx-auto leading-relaxed">
-              Five simple steps from sign-up to your first withdrawal.
-              Work from your phone. Get paid to your UPI.
+              Five simple steps from sign-up to your first voucher redemption.
+              Work from your phone. Redeem NexCoins for gift vouchers.
             </p>
           </FadeIn>
         </div>
@@ -129,16 +129,16 @@ export default function HowItWorksPage() {
       <section className="py-16 px-6 bg-[var(--surface-subtle)]">
         <div className="mx-auto max-w-3xl">
           <FadeIn>
-            <h2 className="text-2xl font-bold text-white mb-8 text-center">Payments & Withdrawals</h2>
+            <h2 className="text-2xl font-bold text-white mb-8 text-center">NexCoins & Rewards</h2>
           </FadeIn>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FadeIn>
               <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-6">
-                <h3 className="font-semibold text-white mb-4">Wallet Balances</h3>
+                <h3 className="font-semibold text-white mb-4">NexCoins Balance</h3>
                 <ul className="space-y-3">
                   {[
-                    { dot: "warning", label: "Pending Balance", desc: "Earnings from submitted work awaiting review." },
-                    { dot: "success", label: "Available Balance", desc: "Confirmed earnings ready to withdraw." },
+                    { dot: "warning", label: "Pending NexCoins", desc: "Coins from submitted work still under review." },
+                    { dot: "success", label: "Available NexCoins", desc: "Confirmed coins ready to redeem in the Store." },
                   ].map((item) => (
                     <li key={item.label} className="flex gap-3">
                       <div className={`h-2 w-2 rounded-full mt-2 flex-shrink-0 ${item.dot === "warning" ? "bg-[var(--warning-text)]" : "bg-[var(--success-text)]"}`} />
@@ -153,12 +153,12 @@ export default function HowItWorksPage() {
             </FadeIn>
             <FadeIn delay={100}>
               <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-6">
-                <h3 className="font-semibold text-white mb-4">Withdrawal Methods</h3>
+                <h3 className="font-semibold text-white mb-4">Voucher Options</h3>
                 <ul className="space-y-3">
                   {[
-                    { method: "UPI",           detail: "Instant transfers to any UPI ID. India only." },
-                    { method: "Bank Transfer", detail: "Direct to your bank account. India only. 1–3 days." },
-                    { method: "PayPal",        detail: "Enter your PayPal email. Global. 1–3 business days." },
+                    { method: "Amazon Gift Card",  detail: "Delivered by email. Valid on Amazon India." },
+                    { method: "Flipkart Gift Card", detail: "Delivered by email. Valid on Flipkart." },
+                    { method: "Paytm / PhonePe",   detail: "Wallet vouchers delivered by email." },
                   ].map((m) => (
                     <li key={m.method} className="flex gap-3">
                       <div className="h-2 w-2 rounded-full bg-[var(--brand-500)] mt-2 flex-shrink-0" />

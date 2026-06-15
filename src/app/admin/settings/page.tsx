@@ -13,7 +13,7 @@ interface AdminUser {
   joined_at: string;
 }
 
-const METHODS = ["UPI", "Bank Transfer", "PayPal"] as const;
+const METHODS = ["Amazon", "Flipkart", "Paytm", "PhonePe", "Google Play"] as const;
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -37,7 +37,7 @@ export default function AdminSettingsPage() {
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [maintenance, setMaintenance]     = useState(false);
   const [methods, setMethods]             = useState<Record<string, boolean>>({
-    UPI: true, "Bank Transfer": true, PayPal: true,
+    Amazon: true, Flipkart: true, Paytm: true, PhonePe: true, "Google Play": true,
   });
 
   // Invite modal

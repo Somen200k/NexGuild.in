@@ -13,7 +13,7 @@ const BREADCRUMBS: Record<string, string[]> = {
   "/admin/submissions":       ["Submissions"],
   "/admin/assignments":       ["Assignments"],
   "/admin/offerwalls":        ["Offerwalls"],
-  "/admin/withdrawals":       ["Withdrawals"],
+  "/admin/withdrawals":       ["Voucher Redemptions"],
   "/admin/vouchers":          ["Vouchers"],
   "/admin/announcements":     ["Announcements"],
   "/admin/finances":          ["Finances"],

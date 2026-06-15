@@ -26,12 +26,12 @@ const FAQ_SECTIONS = [
     ],
   },
   {
-    section: "Payments & Withdrawals",
+    section: "NexCoins & Vouchers",
     faqs: [
-      { q: "How does my wallet work?",               a: "Your wallet has two balances: Pending (earnings under review, not yet withdrawable) and Available (confirmed earnings ready to withdraw)." },
-      { q: "What are the withdrawal methods?",       a: "UPI (India), Bank Transfer (India), and PayPal (global). We plan to add more methods over time." },
-      { q: "What is the minimum withdrawal amount?", a: "The minimum withdrawal amount is currently set by the admin. Check your wallet page for the current minimum threshold." },
-      { q: "How long do withdrawals take?",          a: "Withdrawals are processed manually within 1–3 business days after you request them. New accounts may have a short hold period before their first withdrawal." },
+      { q: "How does my NexCoins balance work?",             a: "Your NexCoins balance shows confirmed coins ready to redeem. Coins from tasks still under review are shown as pending and cannot be redeemed yet." },
+      { q: "What can I redeem NexCoins for?",                a: "You can redeem NexCoins for Amazon, Flipkart, Paytm, PhonePe, Swiggy, Zomato, and Google Play gift vouchers. Visit the Store in your dashboard." },
+      { q: "Is there a minimum NexCoins requirement?",       a: "Each voucher has a fixed NexCoins cost shown in the Store. There is no separate minimum — just choose a voucher your balance covers." },
+      { q: "How long does voucher delivery take?",           a: "Vouchers are delivered to your registered email within 48 hours after your redemption request is processed by our team." },
     ],
   },
   {
@@ -64,7 +64,7 @@ export default function FAQPage() {
             <p className="text-[var(--brand-500)] text-sm font-semibold uppercase tracking-widest mb-3">FAQ</p>
             <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 text-balance">Frequently Asked Questions</h1>
             <p className="text-lg text-[var(--text-secondary)] max-w-xl leading-relaxed">
-              Everything you need to know about earning, withdrawals, and how NexGuild works.
+              Everything you need to know about earning NexCoins, redeeming vouchers, and how NexGuild works.
             </p>
           </FadeIn>
         </div>

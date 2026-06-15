@@ -183,7 +183,7 @@ export default function LandingPage() {
             </h2>
             <p className="sub">
               Complete simple tasks from your phone — recording,
-              testing, transcribing — and get paid to your UPI.
+              testing, transcribing — and redeem NexCoins for gift vouchers.
             </p>
             <div className="acts">
               <Link href="/earn"         className="btn btn-teal"><Arrow /> Start Earning</Link>

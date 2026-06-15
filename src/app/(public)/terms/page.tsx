@@ -12,8 +12,8 @@ export default function TermsPage() {
           <p>Contributors are independent contractors, not employees of NexGuild. You are responsible for your own taxes and legal obligations related to income earned on the platform.</p>
           <h2 className="text-xl font-semibold text-[var(--text-primary)]">2. Account Eligibility</h2>
           <p>You must be at least 18 years old to create an account. You may only hold one account. Creating multiple accounts will result in permanent suspension.</p>
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">3. Earnings and Payouts</h2>
-          <p>Earnings are credited to your wallet only after successful review and approval. NexGuild reserves the right to withhold payment for submissions that do not meet quality standards.</p>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">3. Earnings and Rewards</h2>
+          <p>NexCoins are credited to your account only after successful review and approval. NexGuild reserves the right to withhold NexCoins for submissions that do not meet quality standards. NexCoins have no cash value and may only be redeemed for vouchers available in the Store.</p>
           <h2 className="text-xl font-semibold text-[var(--text-primary)]">4. Prohibited Conduct</h2>
           <p>You may not use automated tools, submit fraudulent responses, create fake submissions, or engage in any activity intended to game the platform.</p>
           <h2 className="text-xl font-semibold text-[var(--text-primary)]">5. Account Termination</h2>
