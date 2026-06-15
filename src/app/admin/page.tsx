@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Users, Gift, Briefcase, ClipboardCheck, Loader2,
   CheckCircle2, XCircle, GraduationCap, Coins,
@@ -8,113 +8,150 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-interface StatItem {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-  href?: string;
+interface Counts {
+  contributors:       number;
+  activeTasks:        number;
+  pendingReviews:     number;
+  pendingAssignments: number;
+  pendingVouchers:    number;
+  totalCoins:         number;
 }
 
 interface Activity {
   id: string;
-  type: "submission" | "assignment" | "voucher";
+  type: "submission" | "assignment";
   title: string;
   sub: string;
   status: string;
   time: string;
 }
 
+const STATUS_ICON: Record<string, React.ReactNode> = {
+  submitted: <ClipboardCheck className="h-4 w-4 text-yellow-400" />,
+  approved:  <CheckCircle2  className="h-4 w-4 text-green-400" />,
+  rejected:  <XCircle       className="h-4 w-4 text-red-400" />,
+  pending:   <Loader2       className="h-4 w-4 text-yellow-400 animate-spin" />,
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  submitted: "Pending review",
+  approved:  "Approved",
+  rejected:  "Rejected",
+  pending:   "Pending",
+};
+
 export default function AdminOverview() {
-  const [loading, setLoading]     = useState(true);
-  const [stats, setStats]         = useState<StatItem[]>([]);
-  const [activity, setActivity]   = useState<Activity[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [counts, setCounts]     = useState<Counts | null>(null);
+  const [activity, setActivity] = useState<Activity[]>([]);
+  const tokenRef                = useRef<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      const [
-        { count: contributors },
-        { count: activeTasks },
-        { count: pendingReviews },
-        { count: pendingAssignments },
-        { count: pendingVouchers },
-        { data: coinsData },
-        { data: recentSubs },
-        { data: recentAssigns },
-      ] = await Promise.all([
-        supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "contributor"),
-        supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "active"),
-        supabase.from("submissions").select("*", { count: "exact", head: true }).eq("status", "submitted"),
-        supabase.from("assignments").select("*", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("voucher_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("submissions").select("coins_awarded").eq("status", "approved"),
-        supabase.from("submissions")
-          .select("id, status, submitted_at, tasks(title), profiles(full_name)")
-          .in("status", ["submitted", "approved", "rejected"])
-          .order("submitted_at", { ascending: false })
-          .limit(5),
-        supabase.from("assignments")
-          .select("id, status, submitted_at, tasks(title), profiles(full_name)")
-          .order("submitted_at", { ascending: false })
-          .limit(3),
-      ]);
-
-      const totalCoins = (coinsData ?? []).reduce(
-        (s: number, r: { coins_awarded: number | null }) => s + (r.coins_awarded ?? 0), 0
-      );
-
-      setStats([
-        { label: "Contributors",      value: (contributors ?? 0).toLocaleString(), icon: <Users className="h-5 w-5" />,          href: "/admin/contributors" },
-        { label: "Active Tasks",      value: (activeTasks ?? 0).toLocaleString(),  icon: <Briefcase className="h-5 w-5" />,       href: "/admin/tasks" },
-        { label: "Pending Reviews",   value: (pendingReviews ?? 0).toLocaleString(),     icon: <ClipboardCheck className="h-5 w-5" />,  href: "/admin/submissions" },
-        { label: "Pending Assignments", value: (pendingAssignments ?? 0).toLocaleString(), icon: <GraduationCap className="h-5 w-5" />, href: "/admin/assignments" },
-        { label: "Pending Vouchers",  value: (pendingVouchers ?? 0).toLocaleString(),    icon: <Gift className="h-5 w-5" />,            href: "/admin/vouchers" },
-        { label: "Coins Issued",      value: totalCoins.toLocaleString(),           icon: <Coins className="h-5 w-5" />,          href: "/admin/finances" },
-      ]);
-
-      // Merge recent activity
-      type SubRow = { id: string; status: string; submitted_at: string; tasks: { title: string } | null; profiles: { full_name: string | null } | null };
-      type AssignRow = { id: string; status: string; submitted_at: string; tasks: { title: string } | null; profiles: { full_name: string | null } | null };
-
-      const acts: Activity[] = [
-        ...((recentSubs as unknown as SubRow[]) ?? []).map((s) => ({
-          id: s.id,
-          type: "submission" as const,
-          title: (s.tasks as { title: string } | null)?.title ?? "Unknown task",
-          sub: (s.profiles as { full_name: string | null } | null)?.full_name ?? "Unknown contributor",
-          status: s.status,
-          time: s.submitted_at,
-        })),
-        ...((recentAssigns as unknown as AssignRow[]) ?? []).map((a) => ({
-          id: a.id,
-          type: "assignment" as const,
-          title: (a.tasks as { title: string } | null)?.title ?? "Unknown task",
-          sub: (a.profiles as { full_name: string | null } | null)?.full_name ?? "Unknown contributor",
-          status: a.status,
-          time: a.submitted_at,
-        })),
-      ]
-        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-        .slice(0, 8);
-
-      setActivity(acts);
-      setLoading(false);
+  // ── Fetch stats via service-role API route (bypasses RLS) ──────────
+  const fetchStats = useCallback(async () => {
+    const token = tokenRef.current;
+    if (!token) return;
+    try {
+      const res = await fetch("/api/admin/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data: Counts = await res.json();
+      setCounts(data);
+    } catch (e) {
+      console.error("[admin/stats] fetch error:", e);
     }
-    load();
   }, []);
 
-  const STATUS_ICON: Record<string, React.ReactNode> = {
-    submitted: <ClipboardCheck className="h-4 w-4 text-yellow-400" />,
-    approved:  <CheckCircle2  className="h-4 w-4 text-green-400" />,
-    rejected:  <XCircle       className="h-4 w-4 text-red-400" />,
-    pending:   <Loader2       className="h-4 w-4 text-yellow-400 animate-spin" />,
-  };
+  // ── Fetch recent activity (browser client — admin RLS covers this) ─
+  const fetchActivity = useCallback(async () => {
+    const [{ data: recentSubs }, { data: recentAssigns }] = await Promise.all([
+      supabase
+        .from("submissions")
+        .select("id, status, submitted_at, tasks(title), profiles(full_name)")
+        .in("status", ["submitted", "approved", "rejected"])
+        .order("submitted_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("assignments")
+        .select("id, status, submitted_at, tasks(title), profiles(full_name)")
+        .order("submitted_at", { ascending: false })
+        .limit(3),
+    ]);
 
-  const STATUS_LABEL: Record<string, string> = {
-    submitted: "Pending review",
-    approved:  "Approved",
-    rejected:  "Rejected",
-    pending:   "Pending",
-  };
+    type Row = {
+      id: string; status: string; submitted_at: string;
+      tasks: { title: string } | null;
+      profiles: { full_name: string | null } | null;
+    };
+
+    const acts: Activity[] = [
+      ...((recentSubs as unknown as Row[]) ?? []).map((s) => ({
+        id: s.id, type: "submission" as const,
+        title: s.tasks?.title ?? "Unknown task",
+        sub:   s.profiles?.full_name ?? "Unknown contributor",
+        status: s.status, time: s.submitted_at,
+      })),
+      ...((recentAssigns as unknown as Row[]) ?? []).map((a) => ({
+        id: a.id, type: "assignment" as const,
+        title: a.tasks?.title ?? "Unknown task",
+        sub:   a.profiles?.full_name ?? "Unknown contributor",
+        status: a.status, time: a.submitted_at,
+      })),
+    ]
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 8);
+
+    setActivity(acts);
+  }, []);
+
+  useEffect(() => {
+    let channels: ReturnType<typeof supabase.channel>[] = [];
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      tokenRef.current = session.access_token;
+
+      await Promise.all([fetchStats(), fetchActivity()]);
+      setLoading(false);
+
+      // ── Realtime: re-fetch counts whenever any watched table changes ──
+      const WATCHED: { table: string; events: ("INSERT" | "UPDATE" | "DELETE")[] }[] = [
+        { table: "profiles",        events: ["INSERT", "UPDATE"] },
+        { table: "tasks",           events: ["INSERT", "UPDATE", "DELETE"] },
+        { table: "submissions",     events: ["INSERT", "UPDATE"] },
+        { table: "assignments",     events: ["INSERT", "UPDATE"] },
+        { table: "voucher_requests",events: ["INSERT", "UPDATE"] },
+      ];
+
+      for (const { table, events } of WATCHED) {
+        const ch = supabase.channel(`admin-stats-${table}`);
+        for (const event of events) {
+          ch.on("postgres_changes", { event, schema: "public", table }, () => {
+            fetchStats();
+            if (table === "submissions" || table === "assignments") fetchActivity();
+          });
+        }
+        ch.subscribe();
+        channels.push(ch);
+      }
+    }
+
+    init();
+    return () => { channels.forEach((ch) => supabase.removeChannel(ch)); };
+  }, [fetchStats, fetchActivity]);
+
+  const statCards = counts
+    ? [
+        { label: "Contributors",        value: counts.contributors.toLocaleString(),       icon: <Users className="h-5 w-5" />,          href: "/admin/contributors" },
+        { label: "Active Tasks",        value: counts.activeTasks.toLocaleString(),        icon: <Briefcase className="h-5 w-5" />,       href: "/admin/tasks" },
+        { label: "Pending Reviews",     value: counts.pendingReviews.toLocaleString(),     icon: <ClipboardCheck className="h-5 w-5" />,  href: "/admin/submissions" },
+        { label: "Pending Assignments", value: counts.pendingAssignments.toLocaleString(), icon: <GraduationCap className="h-5 w-5" />,   href: "/admin/assignments" },
+        { label: "Pending Vouchers",    value: counts.pendingVouchers.toLocaleString(),    icon: <Gift className="h-5 w-5" />,            href: "/admin/vouchers" },
+        { label: "Coins Issued",        value: counts.totalCoins.toLocaleString(),         icon: <Coins className="h-5 w-5" />,           href: "/admin/finances" },
+      ]
+    : [];
 
   return (
     <div className="space-y-8">
@@ -127,10 +164,10 @@ export default function AdminOverview() {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {stats.map((s) => (
+          {statCards.map((s) => (
             <Link
               key={s.label}
-              href={s.href ?? "#"}
+              href={s.href}
               className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 flex flex-col gap-3 hover:border-[var(--brand-500)] transition-colors"
             >
               <div className="flex items-center justify-between text-[var(--brand-500)]">
