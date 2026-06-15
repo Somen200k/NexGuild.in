@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, ClipboardList } from "lucide-react";
+import { Search } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -18,22 +18,47 @@ interface Task {
 
 const FILTERS = ["All", "Survey", "Micro Task", "Data Labeling", "Content", "Project"];
 
+const STATUS_BTN: Record<string, { label: string; clickable: boolean; style: string }> = {
+  in_progress: { label: "Continue →",   clickable: true,  style: "text-[var(--brand-500)]" },
+  submitted:   { label: "Submitted ✓",  clickable: false, style: "text-blue-400 cursor-default" },
+  approved:    { label: "Approved ✓",   clickable: false, style: "text-green-400 cursor-default" },
+  rejected:    { label: "Retry →",      clickable: true,  style: "text-orange-400" },
+};
+
 export default function OpportunitiesPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState("All");
+  const [tasks, setTasks]                         = useState<Task[]>([]);
+  const [submissionMap, setSubmissionMap]         = useState<Record<string, string>>({});
+  const [loading, setLoading]                     = useState(true);
+  const [activeFilter, setActiveFilter]           = useState("All");
 
   useEffect(() => {
-    async function fetchTasks() {
-      const { data } = await supabase
-        .from("tasks")
-        .select("id, title, description, task_type, pay_per_task, total_slots, filled_slots, deadline")
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
-      setTasks(data ?? []);
+    async function fetchData() {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const [tasksResult, subsResult] = await Promise.all([
+        supabase
+          .from("tasks")
+          .select("id, title, description, task_type, pay_per_task, total_slots, filled_slots, deadline")
+          .eq("status", "active")
+          .order("created_at", { ascending: false }),
+        user
+          ? supabase
+              .from("submissions")
+              .select("task_id, status")
+              .eq("contributor_id", user.id)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      setTasks(tasksResult.data ?? []);
+
+      const map: Record<string, string> = {};
+      for (const s of (subsResult.data ?? []) as { task_id: string; status: string }[]) {
+        map[s.task_id] = s.status;
+      }
+      setSubmissionMap(map);
       setLoading(false);
     }
-    fetchTasks();
+    fetchData();
   }, []);
 
   const filtered =
@@ -124,12 +149,25 @@ export default function OpportunitiesPage() {
                       ? `${task.pay_per_task} coins / task`
                       : "—"}
                   </span>
-                  <Link
-                    href={`/dashboard/tasks/${task.id}`}
-                    className="text-xs font-medium text-[var(--brand-500)] hover:underline flex-shrink-0"
-                  >
-                    Start Task →
-                  </Link>
+                  {(() => {
+                    const status = submissionMap[task.id];
+                    const btn = status ? STATUS_BTN[status] : null;
+                    if (btn && !btn.clickable) {
+                      return (
+                        <span className={`text-xs font-medium flex-shrink-0 ${btn.style}`}>
+                          {btn.label}
+                        </span>
+                      );
+                    }
+                    return (
+                      <Link
+                        href={`/dashboard/tasks/${task.id}`}
+                        className={`text-xs font-medium hover:underline flex-shrink-0 ${btn ? btn.style : "text-[var(--brand-500)]"}`}
+                      >
+                        {btn ? btn.label : "Start Task →"}
+                      </Link>
+                    );
+                  })()}
                 </div>
               </div>
             );

@@ -41,6 +41,7 @@ export default function DashboardHome() {
       const [
         { data: profileData },
         { data: tasksData },
+        { data: mySubmissions },
         { count: approvedCount },
         { count: reviewedCount },
       ] = await Promise.all([
@@ -53,7 +54,12 @@ export default function DashboardHome() {
           .from("tasks")
           .select("id, title, description, task_type, pay_per_task")
           .eq("status", "active")
-          .limit(3),
+          .limit(20),
+        // Which tasks has this contributor already started?
+        supabase
+          .from("submissions")
+          .select("task_id")
+          .eq("contributor_id", user.id),
         // Tasks Done = approved submissions
         supabase
           .from("submissions")
@@ -68,8 +74,11 @@ export default function DashboardHome() {
           .in("status", ["approved", "rejected"]),
       ]);
 
+      const startedIds = new Set((mySubmissions ?? []).map((s: { task_id: string }) => s.task_id));
+      const availableTasks = (tasksData ?? []).filter((t) => !startedIds.has(t.id)).slice(0, 3);
+
       setProfile(profileData ?? { full_name: null, nexcoins: 0 });
-      setTasks(tasksData ?? []);
+      setTasks(availableTasks);
       setTasksDone(approvedCount ?? 0);
       setApprovalRate(
         reviewedCount && reviewedCount > 0

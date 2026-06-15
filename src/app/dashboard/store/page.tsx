@@ -1,215 +1,259 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Coins, ShoppingBag, Gift, CheckCircle, X, Loader2, Copy, Check, Clock, PackageCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Coins, ShoppingCart, X, Loader2, CheckCircle, Tag, Plus, Minus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 
-interface MyRequest {
+interface DbVoucher {
   id: string;
-  voucher_type: string;
-  coins_spent: number;
-  status: string;
-  voucher_code: string | null;
-  requested_at: string;
-  delivered_at: string | null;
-}
-
-interface VoucherItem {
-  id: string;
-  name: string;
+  brand_name: string;
   description: string;
-  coins: number;
+  value_inr: number;
+  coins_required: number;
   category: string;
-  badge?: string;
+  emoji: string;
+  is_available: boolean;
 }
 
-const VOUCHERS: VoucherItem[] = [
-  { id: "amazon-100", name: "Amazon Gift Card", description: "₹100 Amazon India gift voucher", coins: 500, category: "Shopping", badge: "Popular" },
-  { id: "amazon-250", name: "Amazon Gift Card", description: "₹250 Amazon India gift voucher", coins: 1200, category: "Shopping" },
-  { id: "amazon-500", name: "Amazon Gift Card", description: "₹500 Amazon India gift voucher", coins: 2300, category: "Shopping" },
-  { id: "flipkart-100", name: "Flipkart Gift Card", description: "₹100 Flipkart gift voucher", coins: 500, category: "Shopping" },
-  { id: "flipkart-250", name: "Flipkart Gift Card", description: "₹250 Flipkart gift voucher", coins: 1200, category: "Shopping" },
-  { id: "paytm-100", name: "Paytm Cash", description: "₹100 Paytm wallet credit", coins: 520, category: "Payments", badge: "Fast" },
-  { id: "paytm-250", name: "Paytm Cash", description: "₹250 Paytm wallet credit", coins: 1250, category: "Payments" },
-  { id: "phonepe-100", name: "PhonePe Voucher", description: "₹100 PhonePe voucher", coins: 520, category: "Payments" },
-  { id: "google-play-100", name: "Google Play", description: "₹100 Google Play credit", coins: 530, category: "Apps & Games" },
-  { id: "google-play-250", name: "Google Play", description: "₹250 Google Play credit", coins: 1280, category: "Apps & Games" },
-  { id: "swiggy-100", name: "Swiggy Voucher", description: "₹100 Swiggy food voucher", coins: 520, category: "Food" },
-  { id: "zomato-100", name: "Zomato Credits", description: "₹100 Zomato credits", coins: 520, category: "Food" },
-];
+interface CartEntry {
+  voucher: DbVoucher;
+  qty: number;
+}
 
-const CATEGORIES = ["All", ...Array.from(new Set(VOUCHERS.map((v) => v.category)))];
+interface CouponResult {
+  code: string;
+  discountCoins: number;
+  discountPercent: number;
+  couponId: string;
+}
 
-const REQUEST_STATUS: Record<string, { label: string; style: string; icon: React.ReactNode }> = {
-  pending:    { label: "Pending",    style: "bg-yellow-500/10 text-yellow-400",  icon: <Clock className="h-3.5 w-3.5" /> },
-  processing: { label: "Processing", style: "bg-blue-500/10 text-blue-400",     icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
-  delivered:  { label: "Delivered",  style: "bg-green-500/10 text-green-400",   icon: <PackageCheck className="h-3.5 w-3.5" /> },
+// UI-only color mapping per brand (DB stores emoji; colors stay here)
+const BRAND_COLORS: Record<string, { bg: string; text: string }> = {
+  "Amazon":      { bg: "bg-orange-500/15", text: "text-orange-400" },
+  "Flipkart":    { bg: "bg-blue-500/15",   text: "text-blue-400" },
+  "Google Play": { bg: "bg-green-500/15",  text: "text-green-400" },
+  "Zomato":      { bg: "bg-red-500/15",    text: "text-red-400" },
 };
 
+function brandColor(brand: string) {
+  return BRAND_COLORS[brand] ?? { bg: "bg-[var(--brand-500)]/15", text: "text-[var(--brand-500)]" };
+}
+
+const CATEGORIES = ["All", "Shopping", "Apps", "Food"];
+
+const CATEGORY_MAP: Record<string, string> = {
+  Shopping: "shopping", Apps: "apps", Food: "food",
+};
+
+const HOW_TO_USE = [
+  "Click Redeem in your cart to submit a request",
+  "We process your request within 24–48 hours",
+  "Your voucher code appears in My Vouchers",
+  "Use the code on the brand's website or app",
+];
+
+const TERMS = [
+  "Vouchers are non-refundable once redeemed",
+  "Valid for 12 months from the date of issue",
+  "Cannot be exchanged for NexCoins or cash",
+  "One voucher code per redemption request",
+];
+
 export default function StorePage() {
-  const [nexcoins, setNexcoins]           = useState<number | null>(null);
-  const [loading, setLoading]             = useState(true);
+  const tokenRef = useRef<string | null>(null);
+
+  const [nexcoins, setNexcoins]   = useState<number | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [vouchers, setVouchers]   = useState<DbVoucher[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [confirmItem, setConfirmItem]     = useState<VoucherItem | null>(null);
-  const [redeeming, setRedeeming]         = useState(false);
-  const [successItem, setSuccessItem]     = useState<VoucherItem | null>(null);
-  const [error, setError]                 = useState<string | null>(null);
-  const [myRequests, setMyRequests]       = useState<MyRequest[]>([]);
-  const [loadingRequests, setLoadingRequests] = useState(true);
-  const [copied, setCopied]               = useState<string | null>(null);
+
+  // Modal — open by brand; user picks denomination
+  const [detailBrand, setDetailBrand]               = useState<string | null>(null);
+  const [selectedVoucherId, setSelectedVoucherId]   = useState<string>("");
+
+  const [cart, setCart]         = useState<CartEntry[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const [couponCode, setCouponCode]         = useState("");
+  const [coupon, setCoupon]                 = useState<CouponResult | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [couponError, setCouponError]       = useState<string | null>(null);
+
+  const [redeeming, setRedeeming]       = useState(false);
+  const [redeemError, setRedeemError]   = useState<string | null>(null);
+  const [successCount, setSuccessCount] = useState(0);
+  const [showSuccess, setShowSuccess]   = useState(false);
 
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      tokenRef.current = session?.access_token ?? null;
 
-      const [{ data: profileData }, { data: requestsData }] = await Promise.all([
+      const [{ data: profileData }, { data: voucherData }] = await Promise.all([
         supabase.from("profiles").select("nexcoins").eq("id", user.id).single(),
         supabase
-          .from("voucher_requests")
-          .select("id, voucher_type, coins_spent, status, voucher_code, requested_at, delivered_at")
-          .eq("contributor_id", user.id)
-          .order("requested_at", { ascending: false }),
+          .from("voucher_inventory")
+          .select("id, brand_name, description, value_inr, coins_required, category, emoji, is_available")
+          .order("brand_name", { ascending: true })
+          .order("value_inr", { ascending: true }),
       ]);
 
-      setNexcoins(profileData?.nexcoins ?? 0);
-      setMyRequests((requestsData as MyRequest[]) ?? []);
+      setNexcoins((profileData as { nexcoins: number } | null)?.nexcoins ?? 0);
+      setVouchers((voucherData as DbVoucher[]) ?? []);
       setLoading(false);
-      setLoadingRequests(false);
-
-      // Real-time: auto-update request status when admin delivers
-      channel = supabase
-        .channel(`voucher_requests:${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "voucher_requests",
-            filter: `contributor_id=eq.${user.id}`,
-          },
-          (payload) => {
-            setMyRequests((prev) =>
-              prev.map((r) => (r.id === payload.new.id ? (payload.new as MyRequest) : r))
-            );
-          }
-        )
-        .subscribe();
     }
-
     fetchData();
-    return () => { if (channel) supabase.removeChannel(channel); };
   }, []);
 
-  async function copyCode(id: string, code: string) {
-    await navigator.clipboard.writeText(code);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
+  // Unique ordered brand list from fetched vouchers
+  const brandList = Array.from(new Map(vouchers.map((v) => [v.brand_name, v.category])).entries()).map(
+    ([brand, category]) => ({ brand, category })
+  );
+
+  function brandVouchers(brand: string) {
+    return vouchers.filter((v) => v.brand_name === brand);
   }
 
-  async function handleRedeem() {
-    if (!confirmItem) return;
-    setRedeeming(true);
-    setError(null);
+  function isBrandAvailable(brand: string) {
+    return brandVouchers(brand).some((v) => v.is_available);
+  }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setError("Not logged in."); setRedeeming(false); return; }
+  function openBrandModal(brand: string) {
+    const bv = brandVouchers(brand);
+    const def = bv.find((v) => v.is_available) ?? bv[0];
+    if (!def) return;
+    setSelectedVoucherId(def.id);
+    setDetailBrand(brand);
+  }
 
-    if ((nexcoins ?? 0) < confirmItem.coins) {
-      setError("Insufficient NexCoins balance.");
-      setRedeeming(false);
-      return;
-    }
+  const modalVouchers  = detailBrand ? brandVouchers(detailBrand) : [];
+  const selectedVoucher = vouchers.find((v) => v.id === selectedVoucherId) ?? null;
 
-    const voucherType = confirmItem.name + " — " + confirmItem.description;
-    const now = new Date().toISOString();
+  const cartTotal  = cart.reduce((s, e) => s + e.voucher.coins_required * e.qty, 0);
+  const discount   = coupon
+    ? coupon.discountPercent > 0
+      ? Math.floor(cartTotal * coupon.discountPercent / 100)
+      : coupon.discountCoins
+    : 0;
+  const finalTotal = Math.max(0, cartTotal - discount);
+  const cartCount  = cart.reduce((s, e) => s + e.qty, 0);
 
-    // 1. Insert voucher request
-    const { data: newRequest, error: insertError } = await supabase
-      .from("voucher_requests")
-      .insert({
-        contributor_id: user.id,
-        voucher_type:   voucherType,
-        voucher_value:  null,
-        coins_spent:    confirmItem.coins,
-        status:         "pending",
-      })
-      .select("id, voucher_type, coins_spent, status, voucher_code, requested_at, delivered_at")
-      .single();
-
-    if (insertError) {
-      setError("Failed to submit request. Please try again.");
-      setRedeeming(false);
-      return;
-    }
-
-    // 2. Atomic deduction via SQL function (prevents double-spend; no-op if balance insufficient)
-    const { error: rpcError } = await supabase.rpc("decrement_nexcoins", {
-      p_contributor_id: user.id,
-      p_coins:          confirmItem.coins,
-    });
-
-    if (rpcError) {
-      console.warn("[store] decrement_nexcoins RPC unavailable, falling back:", rpcError.message);
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ nexcoins: (nexcoins ?? 0) - confirmItem.coins })
-        .eq("id", user.id);
-      if (updateError) {
-        console.error("[store] fallback nexcoins deduction error:", updateError.message);
-        setError("Voucher requested but balance update failed — contact support.");
-        setRedeeming(false);
-        return;
+  function addToCart(v: DbVoucher) {
+    setCart((prev) => {
+      const idx = prev.findIndex((e) => e.voucher.id === v.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+        return next;
       }
-    }
-
-    // Refetch actual balance from DB to reflect the true deducted value
-    const { data: freshProfile } = await supabase
-      .from("profiles")
-      .select("nexcoins")
-      .eq("id", user.id)
-      .single();
-    setNexcoins(freshProfile?.nexcoins ?? Math.max(0, (nexcoins ?? 0) - confirmItem.coins));
-
-    // 3. Log coin transaction
-    await supabase.from("coin_transactions").insert({
-      contributor_id: user.id,
-      amount:         confirmItem.coins,
-      type:           "redeemed",
-      source:         "voucher",
-      description:    `Voucher redeemed: ${voucherType}`,
-      created_at:     now,
+      return [...prev, { voucher: v, qty: 1 }];
     });
-
-    // 4. Optimistically add to My Requests list
-    if (newRequest) {
-      setMyRequests((prev) => [newRequest as MyRequest, ...prev]);
-    }
-
-    setRedeeming(false);
-    setSuccessItem(confirmItem);
-    setConfirmItem(null);
+    setDetailBrand(null);
+    setCartOpen(true);
   }
 
-  const filtered = selectedCategory === "All"
-    ? VOUCHERS
-    : VOUCHERS.filter((v) => v.category === selectedCategory);
+  function removeFromCart(id: string) {
+    setCart((prev) => prev.filter((e) => e.voucher.id !== id));
+  }
+
+  function updateQty(id: string, delta: number) {
+    setCart((prev) =>
+      prev.map((e) => e.voucher.id === id ? { ...e, qty: e.qty + delta } : e).filter((e) => e.qty > 0)
+    );
+  }
+
+  async function applyCoupon() {
+    if (!couponCode.trim()) return;
+    setApplyingCoupon(true);
+    setCouponError(null);
+    setCoupon(null);
+    try {
+      const res = await fetch("/api/store/apply-coupon", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+        body:    JSON.stringify({ code: couponCode.trim(), totalCoins: cartTotal }),
+      });
+      const data = await res.json() as CouponResult & { error?: string };
+      if (!res.ok) setCouponError(data.error ?? "Invalid coupon.");
+      else setCoupon(data);
+    } catch {
+      setCouponError("Failed to validate coupon.");
+    }
+    setApplyingCoupon(false);
+  }
+
+  async function redeemCart() {
+    if (cart.length === 0) return;
+    setRedeeming(true);
+    setRedeemError(null);
+    try {
+      const res = await fetch("/api/store/redeem-cart", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+        body:    JSON.stringify({
+          items: cart.flatMap((e) =>
+            Array.from({ length: e.qty }, () => ({
+              voucherType: `${e.voucher.brand_name} ₹${e.voucher.value_inr} Voucher`,
+              coins:       e.voucher.coins_required,
+            }))
+          ),
+          couponCode: coupon?.code ?? null,
+        }),
+      });
+      const data = await res.json() as { error?: string; voucherCount?: number; newBalance?: number };
+      if (!res.ok) {
+        setRedeemError(data.error ?? "Redemption failed. Please try again.");
+      } else {
+        setSuccessCount(data.voucherCount ?? cart.length);
+        setNexcoins(data.newBalance ?? null);
+        setCart([]);
+        setCoupon(null);
+        setCouponCode("");
+        setCartOpen(false);
+        setShowSuccess(true);
+      }
+    } catch {
+      setRedeemError("Network error. Please try again.");
+    }
+    setRedeeming(false);
+  }
+
+  const displayedBrands = brandList.filter(({ category }) => {
+    if (selectedCategory === "All") return true;
+    return category === CATEGORY_MAP[selectedCategory];
+  });
 
   return (
     <div className="space-y-8">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-1">Store</h1>
           <p className="text-sm text-[var(--text-secondary)]">Redeem your NexCoins for gift vouchers.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2">
-          <Coins className="h-4 w-4 text-[var(--brand-500)]" />
-          <span className="text-sm font-semibold text-[var(--brand-500)]">
-            {loading ? "—" : (nexcoins ?? 0).toLocaleString()} coins
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-2">
+            <Coins className="h-4 w-4 text-[var(--brand-500)]" />
+            <span className="text-sm font-semibold text-[var(--brand-500)]">
+              {loading ? "—" : (nexcoins ?? 0).toLocaleString()} coins
+            </span>
+          </div>
+          <button
+            onClick={() => setCartOpen(true)}
+            className="relative h-10 w-10 flex items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] hover:bg-[var(--surface-subtle)] transition-colors"
+            aria-label="Open cart"
+          >
+            <ShoppingCart className="h-5 w-5 text-[var(--text-secondary)]" />
+            {cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 h-5 min-w-[20px] px-1 rounded-full bg-[var(--brand-500)] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                {cartCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -230,192 +274,343 @@ export default function StorePage() {
         ))}
       </div>
 
-      {/* Ad Banner — replace div with AdBanner once Adsterra key is ready */}
-      <div className="flex justify-center py-2">
-        {/* <AdBanner atKey="YOUR_KEY_HERE" width={728} height={90} /> */}
-        <div className="w-full max-w-[728px] h-[90px] rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)] flex items-center justify-center">
-          <span className="text-xs text-[var(--text-muted)] uppercase tracking-widest">Advertisement</span>
+      {/* Brand Grid */}
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-36 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] animate-pulse" />
+          ))}
         </div>
+      ) : displayedBrands.length === 0 ? (
+        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] py-16 text-center">
+          <p className="text-[var(--text-muted)] text-sm">No vouchers available in this category.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {displayedBrands.map(({ brand }) => {
+            const colors    = brandColor(brand);
+            const bv        = brandVouchers(brand);
+            const available = isBrandAvailable(brand);
+            const minCoins  = Math.min(...bv.map((v) => v.coins_required));
+            const emoji     = bv[0]?.emoji ?? "🎁";
+
+            return (
+              <div
+                key={brand}
+                onClick={() => !loading && openBrandModal(brand)}
+                className={`rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 flex flex-col gap-3 cursor-pointer hover:border-[var(--brand-500)] transition-colors group ${
+                  !available ? "opacity-60" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className={`h-10 w-10 rounded-xl ${colors.bg} flex items-center justify-center text-xl flex-shrink-0`}>
+                    {emoji}
+                  </div>
+                  {!available && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--surface-subtle)] text-[var(--text-muted)] border border-[var(--border-default)] leading-none">
+                      Sold Out
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">{brand}</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {bv.map((v) => (
+                      <span
+                        key={v.id}
+                        className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                          v.is_available
+                            ? `${colors.bg} ${colors.text}`
+                            : "bg-[var(--surface-subtle)] text-[var(--text-muted)] line-through"
+                        }`}
+                      >
+                        ₹{v.value_inr}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-1 border-t border-[var(--border-default)]">
+                  <p className="text-[10px] text-[var(--text-muted)] mb-0.5">From</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <Coins className="h-3 w-3 text-[var(--brand-500)]" />
+                      <span className="text-xs font-bold text-[var(--brand-500)]">{minCoins.toLocaleString()}</span>
+                    </div>
+                    <span className="text-[10px] font-medium text-[var(--brand-500)] group-hover:underline">
+                      {available ? "Select →" : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="text-center">
+        <Link href="/dashboard/vouchers" className="text-sm text-[var(--text-link)] hover:underline">
+          View your redeemed vouchers →
+        </Link>
       </div>
 
-      {/* Voucher Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((item) => {
-          const canAfford = (nexcoins ?? 0) >= item.coins;
-          return (
-            <div
-              key={item.id}
-              className={`rounded-xl border bg-[var(--surface-card)] p-5 flex flex-col gap-4 transition-opacity ${
-                canAfford ? "border-[var(--border-default)]" : "border-[var(--border-default)] opacity-60"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="h-10 w-10 rounded-lg bg-[var(--brand-100)] flex items-center justify-center flex-shrink-0">
-                  <Gift className="h-5 w-5 text-[var(--brand-500)]" />
-                </div>
-                {item.badge && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--brand-500)] text-white">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">{item.category}</p>
-                <h3 className="font-semibold text-[var(--text-primary)] mb-0.5">{item.name}</h3>
-                <p className="text-sm text-[var(--text-secondary)]">{item.description}</p>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Coins className="h-4 w-4 text-[var(--brand-500)]" />
-                  <span className="font-bold text-[var(--brand-500)]">{item.coins.toLocaleString()}</span>
-                </div>
-                <Button
-                  size="sm"
-                  disabled={!canAfford || loading}
-                  onClick={() => setConfirmItem(item)}
-                >
-                  {canAfford ? "Redeem" : "Need more coins"}
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Confirm Modal */}
-      {confirmItem && (
+      {/* ── Brand Detail Modal ────────────────────────────────────────── */}
+      {detailBrand && selectedVoucher && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60">
-          <div className="w-full max-w-sm bg-[var(--surface-card)] rounded-xl border border-[var(--border-default)] p-6 shadow-xl">
-            <div className="flex items-start justify-between mb-4">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Confirm Redemption</h2>
-              <button onClick={() => { setConfirmItem(null); setError(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+          <div className="w-full max-w-md bg-[var(--surface-card)] rounded-xl border border-[var(--border-default)] shadow-xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)] flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className={`h-11 w-11 rounded-xl ${brandColor(detailBrand).bg} flex items-center justify-center text-2xl flex-shrink-0`}>
+                  {modalVouchers[0]?.emoji ?? "🎁"}
+                </div>
+                <div>
+                  <h2 className="font-semibold text-[var(--text-primary)]">{detailBrand}</h2>
+                  <p className="text-xs text-[var(--text-muted)]">Gift Voucher</p>
+                </div>
+              </div>
+              <button onClick={() => setDetailBrand(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="rounded-lg bg-[var(--surface-subtle)] p-4 mb-5">
-              <p className="font-semibold text-[var(--text-primary)]">{confirmItem.name}</p>
-              <p className="text-sm text-[var(--text-secondary)] mt-0.5">{confirmItem.description}</p>
-              <div className="flex items-center gap-1.5 mt-3">
-                <Coins className="h-4 w-4 text-[var(--brand-500)]" />
-                <span className="font-bold text-[var(--brand-500)]">{confirmItem.coins.toLocaleString()} coins</span>
+
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+              {/* Value selector */}
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Select Value</p>
+                <div className="flex flex-wrap gap-2">
+                  {modalVouchers.map((v) => {
+                    const avail    = v.is_available;
+                    const selected = v.id === selectedVoucherId;
+                    return (
+                      <button
+                        key={v.id}
+                        disabled={!avail}
+                        onClick={() => setSelectedVoucherId(v.id)}
+                        className={`px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                          selected
+                            ? "border-[var(--brand-500)] bg-[var(--brand-500)]/10 text-[var(--brand-500)]"
+                            : avail
+                            ? "border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--brand-500)]"
+                            : "border-[var(--border-default)] text-[var(--text-muted)] opacity-50 cursor-not-allowed line-through"
+                        }`}
+                      >
+                        ₹{v.value_inr}
+                        {!avail && <span className="block text-[10px] font-normal">Sold out</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Selected summary */}
+              <div className="rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-default)] p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">Voucher Value</p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)]">₹{selectedVoucher.value_inr}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-[var(--text-muted)] mb-1">Coins Required</p>
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <Coins className="h-4 w-4 text-[var(--brand-500)]" />
+                    <span className="text-xl font-bold text-[var(--brand-500)]">{selectedVoucher.coins_required.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* How to use */}
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">How to use</p>
+                <ol className="space-y-2.5">
+                  {HOW_TO_USE.map((step, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[var(--brand-500)]/15 text-[var(--brand-500)] text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {i + 1}
+                      </span>
+                      <p className="text-sm text-[var(--text-secondary)]">{step}</p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              {/* Terms */}
+              <div className="rounded-lg bg-[var(--surface-subtle)] p-4">
+                <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Terms &amp; Conditions</p>
+                <ul className="space-y-1.5">
+                  {TERMS.map((t, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
+                      <span className="mt-0.5 flex-shrink-0">·</span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
-            <p className="text-xs text-[var(--text-muted)] mb-1">Balance after redemption:</p>
-            <p className="text-sm font-semibold text-[var(--text-primary)] mb-5">
-              {((nexcoins ?? 0) - confirmItem.coins).toLocaleString()} coins
-            </p>
-            {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
-            <p className="text-xs text-[var(--text-muted)] mb-5">
-              Your voucher will be delivered to your registered email within 24–48 hours after approval.
-            </p>
-            <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => { setConfirmItem(null); setError(null); }}>Cancel</Button>
-              <Button className="flex-1" onClick={handleRedeem} disabled={redeeming}>
-                {redeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-                {redeeming ? "Processing..." : "Confirm"}
+
+            <div className="px-6 py-4 border-t border-[var(--border-default)] flex gap-3 flex-shrink-0">
+              <Button variant="ghost" className="flex-1" onClick={() => setDetailBrand(null)}>Close</Button>
+              <Button
+                className="flex-1"
+                disabled={!selectedVoucher.is_available || (nexcoins ?? 0) < selectedVoucher.coins_required || loading}
+                onClick={() => addToCart(selectedVoucher)}
+              >
+                {!selectedVoucher.is_available
+                  ? "Sold Out"
+                  : (nexcoins ?? 0) < selectedVoucher.coins_required
+                  ? "Need more coins"
+                  : "Add to Cart"}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Success Modal */}
-      {successItem && (
+      {/* ── Cart Sidebar ──────────────────────────────────────────────── */}
+      {cartOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/60" onClick={() => setCartOpen(false)} />
+          <div className="w-full max-w-sm bg-[var(--surface-card)] border-l border-[var(--border-default)] flex flex-col h-full">
+            <div className="flex items-center justify-between px-5 h-14 border-b border-[var(--border-default)] flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-[var(--brand-500)]" />
+                <h2 className="font-semibold text-[var(--text-primary)]">Cart</h2>
+                {cartCount > 0 && (
+                  <span className="h-5 min-w-[20px] px-1 rounded-full bg-[var(--brand-500)] text-white text-[10px] font-bold flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+              <button onClick={() => setCartOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {cart.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
+                <ShoppingCart className="h-10 w-10 text-[var(--text-muted)]" />
+                <p className="font-semibold text-[var(--text-primary)]">Your cart is empty</p>
+                <p className="text-sm text-[var(--text-secondary)]">Browse vouchers and add them to your cart.</p>
+                <Button variant="secondary" size="sm" onClick={() => setCartOpen(false)}>Browse Vouchers</Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                  {cart.map((entry) => {
+                    const colors = brandColor(entry.voucher.brand_name);
+                    return (
+                      <div key={entry.voucher.id} className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 flex items-center gap-3">
+                        <div className={`h-9 w-9 rounded-lg ${colors.bg} flex items-center justify-center text-lg flex-shrink-0`}>
+                          {entry.voucher.emoji}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[var(--text-primary)] truncate">{entry.voucher.brand_name}</p>
+                          <p className="text-xs text-[var(--text-muted)]">₹{entry.voucher.value_inr} · {entry.voucher.coins_required.toLocaleString()} coins each</p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => updateQty(entry.voucher.id, -1)} className="h-6 w-6 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-card)]">
+                            <Minus className="h-3 w-3 text-[var(--text-muted)]" />
+                          </button>
+                          <span className="text-sm font-semibold text-[var(--text-primary)] w-6 text-center">{entry.qty}</span>
+                          <button onClick={() => updateQty(entry.voucher.id, 1)} className="h-6 w-6 rounded-md border border-[var(--border-default)] flex items-center justify-center hover:bg-[var(--surface-card)]">
+                            <Plus className="h-3 w-3 text-[var(--text-muted)]" />
+                          </button>
+                          <button onClick={() => removeFromCart(entry.voucher.id)} className="h-6 w-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-red-400 ml-1">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="border-t border-[var(--border-default)] px-5 py-4 space-y-4 flex-shrink-0">
+                  <div>
+                    <div className="flex gap-2">
+                      <div className="flex-1 flex items-center gap-2 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] h-9">
+                        <Tag className="h-3.5 w-3.5 text-[var(--text-muted)] flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCoupon(null); setCouponError(null); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
+                          placeholder="Coupon code"
+                          className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+                        />
+                        {coupon && <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />}
+                      </div>
+                      <Button size="sm" variant="secondary" disabled={!couponCode.trim() || applyingCoupon} onClick={applyCoupon} className="h-9 px-3 flex-shrink-0">
+                        {applyingCoupon ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}
+                      </Button>
+                    </div>
+                    {couponError && <p className="text-xs text-red-400 mt-1.5">{couponError}</p>}
+                    {coupon && (
+                      <p className="text-xs text-green-400 mt-1.5">
+                        ✓ {coupon.discountPercent > 0 ? `${coupon.discountPercent}% off` : `${coupon.discountCoins.toLocaleString()} coins off`} applied!
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--text-muted)]">Subtotal</span>
+                      <span className="text-[var(--text-primary)]">{cartTotal.toLocaleString()} coins</span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-400">Coupon discount</span>
+                        <span className="text-green-400">−{discount.toLocaleString()} coins</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="text-[var(--text-primary)]">Total</span>
+                      <span className="text-[var(--brand-500)]">{finalTotal.toLocaleString()} coins</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[var(--text-muted)]">Your balance</span>
+                      <span className={`font-medium ${(nexcoins ?? 0) >= finalTotal ? "text-[var(--text-muted)]" : "text-red-400"}`}>
+                        {(nexcoins ?? 0).toLocaleString()} coins
+                      </span>
+                    </div>
+                  </div>
+
+                  {redeemError && <p className="text-xs text-red-400 bg-red-500/10 px-3 py-2 rounded-lg">{redeemError}</p>}
+
+                  <Button className="w-full" disabled={redeeming || (nexcoins ?? 0) < finalTotal || loading} onClick={redeemCart}>
+                    {redeeming
+                      ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing…</>
+                      : (nexcoins ?? 0) < finalTotal
+                      ? "Insufficient coins"
+                      : `Redeem All · ${finalTotal.toLocaleString()} coins`}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Success Modal ────────────────────────────────────────────── */}
+      {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60">
           <div className="w-full max-w-sm bg-[var(--surface-card)] rounded-xl border border-[var(--border-default)] p-6 shadow-xl text-center">
             <div className="h-14 w-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="h-7 w-7 text-green-400" />
             </div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Request Submitted!</h2>
-            <p className="text-sm text-[var(--text-secondary)] mb-1">{successItem.name}</p>
-            <p className="text-xs text-[var(--text-muted)] mb-6">
-              Your voucher will be delivered to your registered email within 24–48 hours. Track it below in My Requests.
+            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+              {successCount === 1 ? "Voucher Requested!" : `${successCount} Vouchers Requested!`}
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              Your vouchers will be processed within 24–48 hours. Track them in My Vouchers.
             </p>
-            <Button className="w-full" onClick={() => setSuccessItem(null)}>Done</Button>
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1" onClick={() => setShowSuccess(false)}>Keep Shopping</Button>
+              <Button className="flex-1" asChild>
+                <Link href="/dashboard/vouchers">My Vouchers</Link>
+              </Button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* ── My Requests ──────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-base font-semibold text-[var(--text-primary)] mb-4">My Requests</h2>
-
-        {loadingRequests ? (
-          <div className="space-y-2">
-            {[1, 2].map((i) => (
-              <div key={i} className="h-20 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] animate-pulse" />
-            ))}
-          </div>
-        ) : myRequests.length === 0 ? (
-          <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] py-12 flex flex-col items-center gap-3 text-center">
-            <Gift className="h-8 w-8 text-[var(--text-muted)]" />
-            <p className="text-sm text-[var(--text-secondary)]">No redemption requests yet. Redeem a voucher above.</p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {myRequests.map((r) => {
-              const st = REQUEST_STATUS[r.status] ?? REQUEST_STATUS.pending;
-              const isDelivered = r.status === "delivered";
-              return (
-                <li
-                  key={r.id}
-                  className={`rounded-xl border bg-[var(--surface-card)] p-5 transition-colors ${
-                    isDelivered ? "border-green-500/30" : "border-[var(--border-default)]"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{r.voucher_type}</p>
-                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        {r.coins_spent.toLocaleString()} coins ·{" "}
-                        {new Date(r.requested_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                        {r.delivered_at && (
-                          <span className="text-green-400">
-                            {" "}· Delivered {new Date(r.delivered_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${st.style}`}>
-                      {st.icon}
-                      {st.label}
-                    </span>
-                  </div>
-
-                  {isDelivered && r.voucher_code && (
-                    <div className="mt-4 rounded-lg border border-green-500/20 bg-green-500/5 p-4">
-                      <p className="text-xs text-green-400/70 uppercase tracking-wider mb-2 font-medium">Your Voucher Code</p>
-                      <div className="flex items-center gap-3">
-                        <code className="flex-1 text-lg font-bold font-mono text-green-400 tracking-widest break-all">
-                          {r.voucher_code}
-                        </code>
-                        <button
-                          onClick={() => copyCode(r.id, r.voucher_code!)}
-                          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-medium transition-colors"
-                        >
-                          {copied === r.id ? (
-                            <><Check className="h-3.5 w-3.5" /> Copied!</>
-                          ) : (
-                            <><Copy className="h-3.5 w-3.5" /> Copy Code</>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {!isDelivered && (
-                    <p className="mt-3 text-xs text-[var(--text-muted)]">
-                      {r.status === "pending"
-                        ? "Your request is being reviewed. Voucher will be emailed within 24–48 hours."
-                        : "Your voucher is being processed. You will receive it shortly."}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }
