@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Lock, Globe, Coins, Users, Clock, X, ChevronRight, CheckCircle2, Star, Loader2 } from "lucide-react";
+import { Search, Lock, Globe, Coins, Users, Clock, X, ChevronRight, CheckCircle2, Star, Loader2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -251,18 +251,20 @@ export default function OpportunitiesPage() {
             const assignStatus     = assignmentMap[task.id];
             const assignRejected   = task.assignment_required && assignStatus === "rejected";
             const isResubmitNeeded = subStatus === "resubmit_requested";
+            const isFinalRejected  = subStatus === "rejected";
 
             async function handleCardClick() {
-              if (isFull) return;
-              // Assignment-required + any rejection scenario → delete assignment, start fresh
-              if (task.assignment_required && (assignRejected || subStatus === "rejected")) {
+              if (isFull || isFinalRejected) return;
+              // Assignment rejected → delete it, fresh assignment form
+              if (assignRejected) {
                 if (!userId || retrying) return;
                 setRetrying(task.id);
                 await supabase
                   .from("assignments")
                   .delete()
                   .eq("task_id", task.id)
-                  .eq("contributor_id", userId);
+                  .eq("contributor_id", userId)
+                  .eq("status", "rejected");
                 setAssignmentMap((prev) => {
                   const next = { ...prev };
                   delete next[task.id];
@@ -272,7 +274,7 @@ export default function OpportunitiesPage() {
                 router.push(`/dashboard/tasks/${task.id}`);
                 return;
               }
-              if (subStatus === "in_progress" || subStatus === "rejected" || isResubmitNeeded) {
+              if (subStatus === "in_progress" || isResubmitNeeded) {
                 router.push(`/dashboard/tasks/${task.id}/work`); return;
               }
               if (!subStatus) openTnc(task);
@@ -285,6 +287,8 @@ export default function OpportunitiesPage() {
                   transition-all duration-200
                   ${isFull
                     ? "opacity-60 border-[var(--border-default)]"
+                    : isFinalRejected
+                    ? "opacity-50 border-red-500/20 cursor-not-allowed"
                     : `cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_6px_28px_rgba(20,184,166,0.12)] hover:border-[rgba(20,184,166,0.35)]
                     ${isFeatured ? "border-[rgba(245,158,11,0.4)]" : "border-[var(--border-default)]"}`
                   }`}
@@ -395,6 +399,10 @@ export default function OpportunitiesPage() {
                     <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-400">
                       <CheckCircle2 className="h-4 w-4" /> Approved ✓
                     </span>
+                  ) : isFinalRejected ? (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-400">
+                      <XCircle className="h-4 w-4" /> Rejected ✗
+                    </span>
                   ) : (
                     <button
                       onClick={handleCardClick}
@@ -404,10 +412,8 @@ export default function OpportunitiesPage() {
                           ? "bg-[var(--surface-subtle)] text-[var(--text-muted)] cursor-not-allowed"
                           : isResubmitNeeded
                           ? "bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20"
-                          : (assignRejected || (task.assignment_required && subStatus === "rejected"))
+                          : assignRejected
                           ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
-                          : subStatus === "rejected"
-                          ? "bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20"
                           : subStatus === "in_progress"
                           ? "bg-[rgba(20,184,166,0.1)] text-[var(--brand-500)] border border-[rgba(20,184,166,0.2)] hover:bg-[rgba(20,184,166,0.15)]"
                           : "bg-[var(--brand-500)] text-black hover:brightness-105 active:scale-[0.98]"
@@ -417,10 +423,9 @@ export default function OpportunitiesPage() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : isResubmitNeeded ? "Resubmit →" :
                        subStatus === "in_progress" ? "Continue" :
-                       (assignRejected || (task.assignment_required && subStatus === "rejected")) ? "Retry Assignment →" :
-                       subStatus === "rejected" ? "Retry" :
+                       assignRejected ? "Retry Assignment →" :
                        "Get Started"}
-                      {!isResubmitNeeded && retrying !== task.id && <ChevronRight className="h-4 w-4" />}
+                      {retrying !== task.id && <ChevronRight className="h-4 w-4" />}
                     </button>
                   )}
                 </div>

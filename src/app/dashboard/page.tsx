@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatCard } from "@/components/ui/stat-card";
-import { ArrowRight, Bell, ClipboardList, Layers, ShoppingBag, Coins, X, Megaphone, XCircle, RefreshCw } from "lucide-react";
+import { ArrowRight, ClipboardList, Layers, ShoppingBag, Coins, X, Megaphone, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -86,12 +86,12 @@ export default function DashboardHome() {
       }
       setSubmissionMeta(metaMap);
 
-      // Show tasks that are either not started, or were rejected / need resubmission (retriable)
-      const RETRIABLE = new Set(["rejected", "resubmit_requested"]);
+      // Show tasks with no submission or where resubmission is allowed; hide final rejections
       const availableTasks = (tasksData ?? [])
         .filter((t) => {
           const sub = metaMap[t.id];
-          return !sub || RETRIABLE.has(sub.status);
+          if (!sub) return true;
+          return sub.status === "resubmit_requested";
         })
         .slice(0, 3);
 
@@ -240,10 +240,9 @@ export default function DashboardHome() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {tasks.map((task) => {
-              const sub = submissionMeta[task.id];
-              const isRejected  = sub?.status === "rejected";
-              const needsResub  = sub?.status === "resubmit_requested";
-              const href = isRejected || needsResub
+              const sub        = submissionMeta[task.id];
+              const needsResub = sub?.status === "resubmit_requested";
+              const href       = needsResub
                 ? `/dashboard/tasks/${task.id}/work`
                 : `/dashboard/tasks/${task.id}`;
               return (
@@ -251,18 +250,13 @@ export default function DashboardHome() {
                   key={task.id}
                   href={href}
                   className={`rounded-xl border bg-[var(--surface-card)] p-5 card-hover group ${
-                    isRejected ? "border-red-500/20" : needsResub ? "border-orange-500/25" : "border-[var(--border-default)]"
+                    needsResub ? "border-orange-500/25" : "border-[var(--border-default)]"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <p className="text-xs font-semibold text-[var(--brand-500)] uppercase tracking-wider">
                       {task.task_type ?? "Task"}
                     </p>
-                    {isRejected && (
-                      <span className="flex items-center gap-1 text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full">
-                        <XCircle className="h-3 w-3" /> Rejected
-                      </span>
-                    )}
                     {needsResub && (
                       <span className="flex items-center gap-1 text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/30 px-2 py-0.5 rounded-full">
                         <RefreshCw className="h-3 w-3" /> Resubmit
@@ -272,10 +266,8 @@ export default function DashboardHome() {
                   <h3 className="font-semibold text-[var(--text-primary)] text-sm mb-1 group-hover:text-[var(--brand-500)] transition-colors line-clamp-1">
                     {task.title}
                   </h3>
-                  {(isRejected || needsResub) && sub?.feedback ? (
-                    <p className={`text-xs line-clamp-2 mb-2 ${isRejected ? "text-red-400/80" : "text-orange-400/80"}`}>
-                      {sub.feedback}
-                    </p>
+                  {needsResub && sub?.feedback ? (
+                    <p className="text-xs line-clamp-2 mb-2 text-orange-400/80">{sub.feedback}</p>
                   ) : task.description ? (
                     <p className="text-xs text-[var(--text-muted)] line-clamp-2 mb-3">{task.description}</p>
                   ) : null}
