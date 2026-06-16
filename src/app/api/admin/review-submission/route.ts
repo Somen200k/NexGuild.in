@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { FROM_NOREPLY, getResend, taskApprovedHtml, taskRejectedHtml } from "@/lib/email";
+import { FROM_NOREPLY, getResend, taskApprovedHtml, taskRejectedHtml, resubmissionRequestedHtml } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   const admin = createClient(
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     // ── Parse body ───────────────────────────────────────────────
     const { submissionId, action, feedback, coinsOverride } = await req.json() as {
       submissionId: string;
-      action: "approve" | "reject";
+      action: "approve" | "reject" | "request_resubmit";
       feedback?: string;
       coinsOverride?: number;
     };
@@ -187,6 +187,54 @@ export async function POST(req: NextRequest) {
             html:    taskRejectedHtml(p.full_name ?? "Contributor", taskTitle, feedback ?? null),
           });
           if (emailErr) console.error("[review-submission] reject email error:", emailErr);
+        }
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    // ── REQUEST RESUBMISSION ─────────────────────────────────────────
+    if (action === "request_resubmit") {
+      if (!feedback?.trim()) {
+        return NextResponse.json({ error: "Feedback is required when requesting resubmission" }, { status: 400 });
+      }
+
+      const { error: e1 } = await admin.from("submissions").update({
+        status:      "resubmit_requested",
+        feedback:    feedback.trim(),
+        reviewed_by: user.id,
+        reviewed_at: now,
+      }).eq("id", submissionId);
+
+      if (e1) {
+        console.error("[review-submission] resubmit update:", e1.message);
+        return NextResponse.json({ error: "Failed to update submission: " + e1.message }, { status: 500 });
+      }
+
+      await admin.from("notifications").insert({
+        user_id: sub.contributor_id,
+        title:   "Changes Requested",
+        message: `Admin requested changes to your submission for "${taskTitle}". Tap to resubmit.`,
+        type:    "resubmit_requested",
+      });
+
+      const resend = getResend();
+      if (resend) {
+        const { data: contrib } = await admin
+          .from("profiles")
+          .select("full_name, email")
+          .eq("id", sub.contributor_id)
+          .single();
+
+        const p = contrib as { full_name: string | null; email: string | null } | null;
+        if (p?.email) {
+          const { error: emailErr } = await resend.emails.send({
+            from:    FROM_NOREPLY,
+            to:      p.email,
+            subject: `Changes requested for your submission — ${taskTitle}`,
+            html:    resubmissionRequestedHtml(p.full_name ?? "Contributor", taskTitle, feedback.trim()),
+          });
+          if (emailErr) console.error("[review-submission] resubmit email error:", emailErr);
         }
       }
 

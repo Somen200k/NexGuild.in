@@ -358,7 +358,40 @@ ${r ? `<div style="background:#1c1010;border:1px solid rgba(239,68,68,0.2);borde
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 10. Announcement
+// 10. Resubmission Requested
+// ─────────────────────────────────────────────────────────────────────────────
+export function resubmissionRequestedHtml(
+  name: string,
+  taskTitle: string,
+  feedback: string,
+): string {
+  const n = esc(name), t = esc(taskTitle), f = esc(feedback);
+  return layout(`
+<h1 style="margin:0 0 6px;font-size:22px;font-weight:800;color:#fff;">Changes Requested</h1>
+<p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.38);">${t}</p>
+
+<p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+  Hi <strong style="color:#fff;">${n}</strong>,<br><br>
+  The admin has reviewed your submission for <strong style="color:#fff;">${t}</strong> and is requesting some changes before it can be approved.
+</p>
+
+<div style="background:#1a1200;border:1px solid rgba(245,158,11,0.25);border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 24px;">
+  <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;">What needs to be fixed</p>
+  <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;white-space:pre-wrap;">${f}</p>
+</div>
+
+<div style="background:#111;border:1px solid #222;border-radius:10px;padding:16px 20px;margin:0 0 24px;">
+  <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#F59E0B;text-transform:uppercase;letter-spacing:1px;">Next steps</p>
+  <p style="margin:0 0 6px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">• Review the feedback carefully</p>
+  <p style="margin:0 0 6px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">• Make the requested changes to your work</p>
+  <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">• Click "Resubmit" in your dashboard when ready</p>
+</div>
+
+${btn("Resubmit Now →", "https://nexguild.in/dashboard/tasks")}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 11. Announcement
 // ─────────────────────────────────────────────────────────────────────────────
 export function announcementHtml(
   name: string,

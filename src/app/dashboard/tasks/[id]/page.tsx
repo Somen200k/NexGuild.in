@@ -491,6 +491,23 @@ export default function TaskDetailPage() {
             </div>
           )}
 
+          {submission?.status === "resubmit_requested" && (
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 rounded-lg bg-orange-500/10 border border-orange-500/20 p-4">
+                <AlertCircle className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-orange-400">Changes Requested by Admin</p>
+                  {submission.feedback && (
+                    <p className="text-xs text-orange-300/80 mt-1 leading-relaxed">{submission.feedback}</p>
+                  )}
+                </div>
+              </div>
+              <Button asChild size="lg">
+                <Link href={`/dashboard/tasks/${id}/work`}>Resubmit Work →</Link>
+              </Button>
+            </div>
+          )}
+
           {submission?.status === "rejected" && (
             <div className="space-y-3">
               <div className="flex items-start gap-3 rounded-lg bg-red-500/10 border border-red-500/20 p-4">
@@ -498,7 +515,7 @@ export default function TaskDetailPage() {
                 <div>
                   <p className="text-sm font-bold text-red-400">Submission Rejected</p>
                   {submission.feedback && (
-                    <p className="text-xs text-red-300/70 mt-1">{submission.feedback}</p>
+                    <p className="text-xs text-red-300/70 mt-1 leading-relaxed">{submission.feedback}</p>
                   )}
                 </div>
               </div>

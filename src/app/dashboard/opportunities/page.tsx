@@ -85,6 +85,7 @@ export default function OpportunitiesPage() {
   const router = useRouter();
   const [tasks, setTasks]                 = useState<Task[]>([]);
   const [submissionMap, setSubmissionMap] = useState<Record<string, string>>({});
+  const [assignmentMap, setAssignmentMap] = useState<Record<string, string>>({});
   const [profile, setProfile]             = useState<ProfileData>({ languages: [], skills: [] });
   const [userId, setUserId]               = useState<string | null>(null);
   const [loading, setLoading]             = useState(true);
@@ -107,10 +108,13 @@ export default function OpportunitiesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       setUserId(user?.id ?? null);
 
-      const [tasksRes, subsRes, profileRes] = await Promise.all([
+      const [tasksRes, subsRes, assignRes, profileRes] = await Promise.all([
         supabase.from("tasks").select("*").eq("status", "active").order("created_at", { ascending: false }),
         user
           ? supabase.from("submissions").select("task_id, status").eq("contributor_id", user.id)
+          : Promise.resolve({ data: [] }),
+        user
+          ? supabase.from("assignments").select("task_id, status").eq("contributor_id", user.id)
           : Promise.resolve({ data: [] }),
         user
           ? supabase.from("profiles").select("languages, skills").eq("id", user.id).single()
@@ -124,6 +128,12 @@ export default function OpportunitiesPage() {
         map[s.task_id] = s.status;
       }
       setSubmissionMap(map);
+
+      const amap: Record<string, string> = {};
+      for (const a of (assignRes.data ?? []) as { task_id: string; status: string }[]) {
+        amap[a.task_id] = a.status;
+      }
+      setAssignmentMap(amap);
 
       if (profileRes.data) {
         setProfile({
@@ -237,6 +247,19 @@ export default function OpportunitiesPage() {
             const langMatches = lang && profile.languages.length > 0 &&
               profile.languages.map((l) => l.toLowerCase()).includes(lang.toLowerCase());
 
+            const assignStatus     = assignmentMap[task.id];
+            const assignRejected   = task.assignment_required && assignStatus === "rejected";
+            const isResubmitNeeded = subStatus === "resubmit_requested";
+
+            function handleCardClick() {
+              if (isFull) return;
+              if (assignRejected) { router.push(`/dashboard/tasks/${task.id}`); return; }
+              if (subStatus === "in_progress" || subStatus === "rejected" || isResubmitNeeded) {
+                router.push(`/dashboard/tasks/${task.id}/work`); return;
+              }
+              if (!subStatus) openTnc(task);
+            }
+
             return (
               <div
                 key={task.id}
@@ -247,14 +270,7 @@ export default function OpportunitiesPage() {
                     : `cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_6px_28px_rgba(20,184,166,0.12)] hover:border-[rgba(20,184,166,0.35)]
                     ${isFeatured ? "border-[rgba(245,158,11,0.4)]" : "border-[var(--border-default)]"}`
                   }`}
-                onClick={() => {
-                  if (isFull) return;
-                  if (subStatus === "in_progress" || subStatus === "rejected") {
-                    router.push(`/dashboard/tasks/${task.id}/work`);
-                  } else if (!subStatus) {
-                    openTnc(task);
-                  }
-                }}
+                onClick={handleCardClick}
               >
                 {/* Featured top glow */}
                 {isFeatured && (
@@ -363,29 +379,28 @@ export default function OpportunitiesPage() {
                     </span>
                   ) : (
                     <button
-                      onClick={() => {
-                        if (isFull) return;
-                        if (subStatus === "in_progress" || subStatus === "rejected") {
-                          router.push(`/dashboard/tasks/${task.id}/work`);
-                        } else if (!subStatus) {
-                          openTnc(task);
-                        }
-                      }}
+                      onClick={handleCardClick}
                       disabled={isFull}
                       className={`w-full h-9 rounded-lg text-sm font-bold flex items-center justify-center gap-1 transition-all duration-150 ${
                         isFull
                           ? "bg-[var(--surface-subtle)] text-[var(--text-muted)] cursor-not-allowed"
+                          : isResubmitNeeded
+                          ? "bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20"
                           : subStatus === "rejected"
                           ? "bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20"
+                          : assignRejected
+                          ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
                           : subStatus === "in_progress"
                           ? "bg-[rgba(20,184,166,0.1)] text-[var(--brand-500)] border border-[rgba(20,184,166,0.2)] hover:bg-[rgba(20,184,166,0.15)]"
                           : "bg-[var(--brand-500)] text-black hover:brightness-105 active:scale-[0.98]"
                       }`}
                     >
-                      {subStatus === "in_progress" ? "Continue" :
+                      {isResubmitNeeded ? "Resubmit →" :
+                       subStatus === "in_progress" ? "Continue" :
                        subStatus === "rejected" ? "Retry" :
+                       assignRejected ? "Retry Assignment →" :
                        "Get Started"}
-                      <ChevronRight className="h-4 w-4" />
+                      {!isResubmitNeeded && <ChevronRight className="h-4 w-4" />}
                     </button>
                   )}
                 </div>

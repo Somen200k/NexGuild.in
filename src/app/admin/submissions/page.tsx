@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   CheckCircle2, XCircle, Loader2, Search,
-  FileText, ExternalLink, CheckSquare,
+  FileText, ExternalLink, CheckSquare, RefreshCw, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -28,34 +28,41 @@ interface Submission {
   profiles: { full_name: string | null; email: string | null } | null;
 }
 
-const TABS = ["submitted", "approved", "rejected", "in_progress"] as const;
+const TABS = ["submitted", "resubmit_requested", "approved", "rejected", "in_progress"] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
-  submitted:   "Pending Review",
-  approved:    "Approved",
-  rejected:    "Rejected",
-  in_progress: "In Progress",
+  submitted:           "Pending Review",
+  resubmit_requested:  "Needs Resubmission",
+  approved:            "Approved",
+  rejected:            "Rejected",
+  in_progress:         "In Progress",
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  in_progress: "bg-blue-500/10 text-blue-400",
-  submitted:   "bg-yellow-500/10 text-yellow-400",
-  approved:    "bg-green-500/10 text-green-400",
-  rejected:    "bg-red-500/10 text-red-400",
+  in_progress:         "bg-blue-500/10 text-blue-400",
+  submitted:           "bg-yellow-500/10 text-yellow-400",
+  resubmit_requested:  "bg-orange-500/10 text-orange-400",
+  approved:            "bg-green-500/10 text-green-400",
+  rejected:            "bg-red-500/10 text-red-400",
 };
 
 export default function AdminSubmissionsPage() {
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [activeTab, setActiveTab]     = useState<Tab>("submitted");
-  const [search, setSearch]           = useState("");
-  const [feedbacks, setFeedbacks]     = useState<Record<string, string>>({});
-  const [coinsMap, setCoinsMap]       = useState<Record<string, string>>({});
-  const [reviewing, setReviewing]     = useState<string | null>(null);
-  const [token, setToken]             = useState<string | null>(null);
-  const [selected, setSelected]       = useState<Set<string>>(new Set());
+  const [submissions, setSubmissions]     = useState<Submission[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [activeTab, setActiveTab]         = useState<Tab>("submitted");
+  const [search, setSearch]               = useState("");
+  const [feedbacks, setFeedbacks]         = useState<Record<string, string>>({});
+  const [coinsMap, setCoinsMap]           = useState<Record<string, string>>({});
+  const [reviewing, setReviewing]         = useState<string | null>(null);
+  const [token, setToken]                 = useState<string | null>(null);
+  const [selected, setSelected]           = useState<Set<string>>(new Set());
   const [bulkApproving, setBulkApproving] = useState(false);
+
+  // Resubmission modal
+  const [resubmitModal, setResubmitModal]   = useState<string | null>(null);
+  const [resubmitReason, setResubmitReason] = useState("");
+  const [resubmitting, setResubmitting]     = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -79,8 +86,8 @@ export default function AdminSubmissionsPage() {
   async function review(submissionId: string, action: "approve" | "reject") {
     if (!token) return;
     setReviewing(submissionId);
-    const feedback = feedbacks[submissionId]?.trim() || undefined;
-    const coinsStr = coinsMap[submissionId];
+    const feedback    = feedbacks[submissionId]?.trim() || undefined;
+    const coinsStr    = coinsMap[submissionId];
     const coinsOverride = coinsStr ? parseInt(coinsStr, 10) : undefined;
 
     const res = await fetch("/api/admin/review-submission", {
@@ -105,6 +112,30 @@ export default function AdminSubmissionsPage() {
       );
     }
     setReviewing(null);
+  }
+
+  async function requestResubmit(submissionId: string) {
+    if (!token || !resubmitReason.trim()) return;
+    setResubmitting(true);
+
+    const res = await fetch("/api/admin/review-submission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ submissionId, action: "request_resubmit", feedback: resubmitReason.trim() }),
+    });
+
+    if (res.ok) {
+      setSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === submissionId
+            ? { ...s, status: "resubmit_requested", feedback: resubmitReason.trim() }
+            : s
+        )
+      );
+    }
+    setResubmitting(false);
+    setResubmitModal(null);
+    setResubmitReason("");
   }
 
   async function bulkApprove() {
@@ -137,7 +168,8 @@ export default function AdminSubmissionsPage() {
     return matchTab && matchSearch;
   });
 
-  const pendingCount = submissions.filter((s) => s.status === "submitted" || s.status === "pending").length;
+  const pendingCount   = submissions.filter((s) => s.status === "submitted" || s.status === "pending").length;
+  const resubmitCount  = submissions.filter((s) => s.status === "resubmit_requested").length;
   const pendingFiltered = filtered.filter((s) => s.status === "submitted" || s.status === "pending");
   const allPendingSelected = pendingFiltered.length > 0 && pendingFiltered.every((s) => selected.has(s.id));
 
@@ -163,6 +195,9 @@ export default function AdminSubmissionsPage() {
       });
     }
   }
+
+  const isPendingReview = (s: Submission) =>
+    s.status === "submitted" || s.status === "pending";
 
   return (
     <div className="space-y-6">
@@ -196,6 +231,11 @@ export default function AdminSubmissionsPage() {
             {tab === "submitted" && pendingCount > 0 && (
               <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-bold px-1">
                 {pendingCount}
+              </span>
+            )}
+            {tab === "resubmit_requested" && resubmitCount > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold px-1">
+                {resubmitCount}
               </span>
             )}
           </button>
@@ -249,7 +289,7 @@ export default function AdminSubmissionsPage() {
               {/* Header */}
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
-                  {(sub.status === "submitted" || sub.status === "pending") && (
+                  {isPendingReview(sub) && (
                     <input
                       type="checkbox"
                       checked={selected.has(sub.id)}
@@ -265,7 +305,7 @@ export default function AdminSubmissionsPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_BADGE[sub.status] ?? ""}`}>
-                    {sub.status === "submitted" ? "Pending" : sub.status.replace("_", " ")}
+                    {sub.status === "submitted" ? "Pending" : sub.status === "resubmit_requested" ? "Needs Resubmission" : sub.status.replace("_", " ")}
                   </span>
                   <span className="text-xs text-[var(--text-muted)]">
                     {new Date(sub.submitted_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
@@ -273,7 +313,7 @@ export default function AdminSubmissionsPage() {
                 </div>
               </div>
 
-              {/* Task + coins */}
+              {/* Task */}
               {sub.tasks && (
                 <p className="text-xs text-[var(--text-muted)]">
                   Task: <span className="font-semibold text-[var(--text-primary)]">{sub.tasks.title}</span>
@@ -310,13 +350,19 @@ export default function AdminSubmissionsPage() {
 
               {/* Existing feedback */}
               {sub.feedback && (
-                <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
-                  <p className="text-xs font-semibold text-red-400 mb-1">Admin Feedback</p>
-                  <p className="text-sm text-red-300">{sub.feedback}</p>
+                <div className={`rounded-lg p-3 ${
+                  sub.status === "resubmit_requested"
+                    ? "bg-orange-500/10 border border-orange-500/20"
+                    : "bg-red-500/10 border border-red-500/20"
+                }`}>
+                  <p className={`text-xs font-semibold mb-1 ${sub.status === "resubmit_requested" ? "text-orange-400" : "text-red-400"}`}>
+                    {sub.status === "resubmit_requested" ? "Requested Changes" : "Admin Feedback"}
+                  </p>
+                  <p className={`text-sm ${sub.status === "resubmit_requested" ? "text-orange-300" : "text-red-300"}`}>{sub.feedback}</p>
                 </div>
               )}
 
-              {/* Approved result */}
+              {/* Approved */}
               {sub.status === "approved" && sub.coins_awarded != null && (
                 <div className="flex items-center gap-2 text-sm text-green-400">
                   <CheckCircle2 className="h-4 w-4" /> {sub.coins_awarded} NexCoins credited
@@ -324,7 +370,7 @@ export default function AdminSubmissionsPage() {
               )}
 
               {/* Review controls */}
-              {(sub.status === "submitted" || sub.status === "pending") && (
+              {isPendingReview(sub) && (
                 <div className="border-t border-[var(--border-default)] pt-4 space-y-3">
                   <div className="flex gap-2">
                     <input
@@ -342,18 +388,75 @@ export default function AdminSubmissionsPage() {
                       className="w-24 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button size="sm" disabled={reviewing === sub.id} onClick={() => review(sub.id, "approve")}>
                       {reviewing === sub.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Approve</>}
                     </Button>
                     <Button variant="destructive" size="sm" disabled={reviewing === sub.id} onClick={() => review(sub.id, "reject")}>
                       {reviewing === sub.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><XCircle className="h-4 w-4" /> Reject</>}
                     </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={reviewing === sub.id}
+                      onClick={() => { setResubmitModal(sub.id); setResubmitReason(""); }}
+                    >
+                      <RefreshCw className="h-4 w-4" /> Request Resubmission
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Resubmission Modal */}
+      {resubmitModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) { setResubmitModal(null); setResubmitReason(""); } }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Request Resubmission</h2>
+                <p className="text-sm text-[var(--text-muted)] mt-0.5">Tell the contributor what needs to be fixed.</p>
+              </div>
+              <button
+                onClick={() => { setResubmitModal(null); setResubmitReason(""); }}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-[var(--text-primary)]">What needs to be fixed?</label>
+              <textarea
+                value={resubmitReason}
+                onChange={(e) => setResubmitReason(e.target.value)}
+                rows={4}
+                placeholder="e.g. Your audio quality is too low. Please re-record in a quieter environment with better microphone."
+                className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] resize-none"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={() => { setResubmitModal(null); setResubmitReason(""); }} disabled={resubmitting}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => requestResubmit(resubmitModal)}
+                disabled={resubmitting || !resubmitReason.trim()}
+              >
+                {resubmitting
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                  : <><RefreshCw className="h-4 w-4" /> Send Request</>}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

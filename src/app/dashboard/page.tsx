@@ -20,6 +20,11 @@ interface Task {
   pay_per_task: number | null;
 }
 
+interface SubmissionMeta {
+  status: string;
+  feedback: string | null;
+}
+
 interface AnnouncementNotif {
   id: string;
   title: string;
@@ -36,6 +41,7 @@ const QUICK_ACTIONS = [
 export default function DashboardHome() {
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [tasks, setTasks]               = useState<Task[]>([]);
+  const [submissionMeta, setSubmissionMeta] = useState<Record<string, SubmissionMeta>>({});
   const [tasksDone, setTasksDone]       = useState<number>(0);
   const [approvalRate, setApprovalRate] = useState<number | null>(null);
   const [loading, setLoading]           = useState(true);
@@ -57,7 +63,7 @@ export default function DashboardHome() {
       ] = await Promise.all([
         supabase.from("profiles").select("full_name, nexcoins").eq("id", user.id).single(),
         supabase.from("tasks").select("id, title, description, task_type, pay_per_task").eq("status", "active").limit(20),
-        supabase.from("submissions").select("task_id").eq("contributor_id", user.id),
+        supabase.from("submissions").select("task_id, status, feedback").eq("contributor_id", user.id),
         supabase.from("submissions").select("*", { count: "exact", head: true }).eq("contributor_id", user.id).eq("status", "approved"),
         supabase.from("submissions").select("*", { count: "exact", head: true }).eq("contributor_id", user.id).in("status", ["approved", "rejected"]),
         // Latest unread announcement notification
@@ -73,8 +79,21 @@ export default function DashboardHome() {
           .limit(1),
       ]);
 
-      const startedIds = new Set((mySubmissions ?? []).map((s: { task_id: string }) => s.task_id));
-      const availableTasks = (tasksData ?? []).filter((t) => !startedIds.has(t.id)).slice(0, 3);
+      // Build submission meta map: task_id → { status, feedback }
+      const metaMap: Record<string, SubmissionMeta> = {};
+      for (const s of (mySubmissions ?? []) as { task_id: string; status: string; feedback: string | null }[]) {
+        metaMap[s.task_id] = { status: s.status, feedback: s.feedback };
+      }
+      setSubmissionMeta(metaMap);
+
+      // Show tasks that are either not started, or were rejected / need resubmission (retriable)
+      const RETRIABLE = new Set(["rejected", "resubmit_requested"]);
+      const availableTasks = (tasksData ?? [])
+        .filter((t) => {
+          const sub = metaMap[t.id];
+          return !sub || RETRIABLE.has(sub.status);
+        })
+        .slice(0, 3);
 
       setProfile(profileData ?? { full_name: null, nexcoins: 0 });
       setTasks(availableTasks);
@@ -220,28 +239,50 @@ export default function DashboardHome() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tasks.map((task) => (
-              <Link
-                key={task.id}
-                href={`/dashboard/tasks/${task.id}`}
-                className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 card-hover group"
-              >
-                <p className="text-xs font-semibold text-[var(--brand-500)] uppercase tracking-wider mb-2">
-                  {task.task_type ?? "Task"}
-                </p>
-                <h3 className="font-semibold text-[var(--text-primary)] text-sm mb-1 group-hover:text-[var(--brand-500)] transition-colors line-clamp-1">
-                  {task.title}
-                </h3>
-                {task.description && (
-                  <p className="text-xs text-[var(--text-muted)] line-clamp-2 mb-3">{task.description}</p>
-                )}
-                {task.pay_per_task != null && (
-                  <p className="text-xs font-medium text-[var(--success-text)]">
-                    {task.pay_per_task} coins / task
-                  </p>
-                )}
-              </Link>
-            ))}
+            {tasks.map((task) => {
+              const sub = submissionMeta[task.id];
+              const isRejected  = sub?.status === "rejected";
+              const needsResub  = sub?.status === "resubmit_requested";
+              const href = isRejected || needsResub
+                ? `/dashboard/tasks/${task.id}/work`
+                : `/dashboard/tasks/${task.id}`;
+              return (
+                <Link
+                  key={task.id}
+                  href={href}
+                  className={`rounded-xl border bg-[var(--surface-card)] p-5 card-hover group ${
+                    isRejected ? "border-red-500/20" : needsResub ? "border-orange-500/25" : "border-[var(--border-default)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-xs font-semibold text-[var(--brand-500)] uppercase tracking-wider">
+                      {task.task_type ?? "Task"}
+                    </p>
+                    {isRejected && (
+                      <span className="text-xs font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Rejected</span>
+                    )}
+                    {needsResub && (
+                      <span className="text-xs font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full">Needs Resubmission</span>
+                    )}
+                  </div>
+                  <h3 className="font-semibold text-[var(--text-primary)] text-sm mb-1 group-hover:text-[var(--brand-500)] transition-colors line-clamp-1">
+                    {task.title}
+                  </h3>
+                  {(isRejected || needsResub) && sub?.feedback ? (
+                    <p className={`text-xs line-clamp-2 mb-2 ${isRejected ? "text-red-400/80" : "text-orange-400/80"}`}>
+                      {sub.feedback}
+                    </p>
+                  ) : task.description ? (
+                    <p className="text-xs text-[var(--text-muted)] line-clamp-2 mb-3">{task.description}</p>
+                  ) : null}
+                  {task.pay_per_task != null && (
+                    <p className="text-xs font-medium text-[var(--success-text)]">
+                      {task.pay_per_task} coins / task
+                    </p>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
