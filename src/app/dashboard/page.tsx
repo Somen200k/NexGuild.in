@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatCard } from "@/components/ui/stat-card";
-import { ArrowRight, Bell, ClipboardList, Layers, ShoppingBag, Coins, X, Megaphone } from "lucide-react";
+import { ArrowRight, Bell, ClipboardList, Layers, ShoppingBag, Coins, X, Megaphone, XCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -259,10 +259,14 @@ export default function DashboardHome() {
                       {task.task_type ?? "Task"}
                     </p>
                     {isRejected && (
-                      <span className="text-xs font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Rejected</span>
+                      <span className="flex items-center gap-1 text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full">
+                        <XCircle className="h-3 w-3" /> Rejected
+                      </span>
                     )}
                     {needsResub && (
-                      <span className="text-xs font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full">Needs Resubmission</span>
+                      <span className="flex items-center gap-1 text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/30 px-2 py-0.5 rounded-full">
+                        <RefreshCw className="h-3 w-3" /> Resubmit
+                      </span>
                     )}
                   </div>
                   <h3 className="font-semibold text-[var(--text-primary)] text-sm mb-1 group-hover:text-[var(--brand-500)] transition-colors line-clamp-1">

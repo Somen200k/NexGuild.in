@@ -146,7 +146,8 @@ export default function TaskWorkPage() {
       setSubmissionId(sid);
       setSubmissionStatus(sstatus);
 
-      if (sid) {
+      // When resubmitting, show all steps as fresh (don't pre-fill previous answers)
+      if (sid && sstatus !== "resubmit_requested") {
         try {
           const { data: subs } = await supabase
             .from("task_step_submissions")

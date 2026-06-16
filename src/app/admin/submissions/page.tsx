@@ -28,24 +28,28 @@ interface Submission {
   profiles: { full_name: string | null; email: string | null } | null;
 }
 
-const TABS = ["submitted", "resubmit_requested", "approved", "rejected", "in_progress"] as const;
+const TABS = ["submitted", "approved", "rejected"] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
-  submitted:           "Pending Review",
-  resubmit_requested:  "Needs Resubmission",
-  approved:            "Approved",
-  rejected:            "Rejected",
-  in_progress:         "In Progress",
+  submitted: "Pending Review",
+  approved:  "Approved",
+  rejected:  "Rejected",
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  in_progress:         "bg-blue-500/10 text-blue-400",
-  submitted:           "bg-yellow-500/10 text-yellow-400",
-  resubmit_requested:  "bg-orange-500/10 text-orange-400",
-  approved:            "bg-green-500/10 text-green-400",
-  rejected:            "bg-red-500/10 text-red-400",
+  in_progress:        "bg-blue-500/10 text-blue-400",
+  submitted:          "bg-yellow-500/10 text-yellow-400",
+  resubmit_requested: "bg-orange-500/10 text-orange-400",
+  approved:           "bg-green-500/10 text-green-400",
+  rejected:           "bg-red-500/10 text-red-400",
 };
+
+function statusLabel(status: string): string {
+  if (status === "submitted")          return "Pending";
+  if (status === "resubmit_requested") return "Retry Allowed";
+  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default function AdminSubmissionsPage() {
   const [submissions, setSubmissions]     = useState<Submission[]>([]);
@@ -54,15 +58,15 @@ export default function AdminSubmissionsPage() {
   const [search, setSearch]               = useState("");
   const [feedbacks, setFeedbacks]         = useState<Record<string, string>>({});
   const [coinsMap, setCoinsMap]           = useState<Record<string, string>>({});
-  const [reviewing, setReviewing]         = useState<string | null>(null);
+  const [approving, setApproving]         = useState<string | null>(null);
   const [token, setToken]                 = useState<string | null>(null);
   const [selected, setSelected]           = useState<Set<string>>(new Set());
   const [bulkApproving, setBulkApproving] = useState(false);
 
-  // Resubmission modal
-  const [resubmitModal, setResubmitModal]   = useState<string | null>(null);
-  const [resubmitReason, setResubmitReason] = useState("");
-  const [resubmitting, setResubmitting]     = useState(false);
+  // Reject modal
+  const [rejectModal, setRejectModal]   = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting]       = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -83,9 +87,9 @@ export default function AdminSubmissionsPage() {
     load();
   }, []);
 
-  async function review(submissionId: string, action: "approve" | "reject") {
+  async function approve(submissionId: string) {
     if (!token) return;
-    setReviewing(submissionId);
+    setApproving(submissionId);
     const feedback    = feedbacks[submissionId]?.trim() || undefined;
     const coinsStr    = coinsMap[submissionId];
     const coinsOverride = coinsStr ? parseInt(coinsStr, 10) : undefined;
@@ -93,7 +97,7 @@ export default function AdminSubmissionsPage() {
     const res = await fetch("/api/admin/review-submission", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ submissionId, action, feedback, coinsOverride }),
+      body: JSON.stringify({ submissionId, action: "approve", feedback, coinsOverride }),
     });
 
     if (res.ok) {
@@ -101,41 +105,38 @@ export default function AdminSubmissionsPage() {
       setSubmissions((prev) =>
         prev.map((s) =>
           s.id === submissionId
-            ? {
-                ...s,
-                status: action === "approve" ? "approved" : "rejected",
-                feedback: feedback ?? s.feedback,
-                coins_awarded: action === "approve" ? (result.coins_awarded ?? s.coins_awarded) : s.coins_awarded,
-              }
+            ? { ...s, status: "approved", feedback: feedback ?? s.feedback, coins_awarded: result.coins_awarded ?? s.coins_awarded }
             : s
         )
       );
     }
-    setReviewing(null);
+    setApproving(null);
   }
 
-  async function requestResubmit(submissionId: string) {
-    if (!token || !resubmitReason.trim()) return;
-    setResubmitting(true);
+  async function rejectWithOption(allowRetry: boolean) {
+    if (!token || !rejectModal || !rejectReason.trim()) return;
+    setRejecting(true);
+    const action = allowRetry ? "request_resubmit" : "reject";
 
     const res = await fetch("/api/admin/review-submission", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ submissionId, action: "request_resubmit", feedback: resubmitReason.trim() }),
+      body: JSON.stringify({ submissionId: rejectModal, action, feedback: rejectReason.trim() }),
     });
 
     if (res.ok) {
+      const newStatus = allowRetry ? "resubmit_requested" : "rejected";
       setSubmissions((prev) =>
         prev.map((s) =>
-          s.id === submissionId
-            ? { ...s, status: "resubmit_requested", feedback: resubmitReason.trim() }
+          s.id === rejectModal
+            ? { ...s, status: newStatus, feedback: rejectReason.trim() }
             : s
         )
       );
     }
-    setResubmitting(false);
-    setResubmitModal(null);
-    setResubmitReason("");
+    setRejecting(false);
+    setRejectModal(null);
+    setRejectReason("");
   }
 
   async function bulkApprove() {
@@ -155,22 +156,30 @@ export default function AdminSubmissionsPage() {
     setBulkApproving(false);
   }
 
+  const isPending = (s: Submission) => s.status === "submitted" || s.status === "pending";
+
   const filtered = submissions.filter((s) => {
-    const matchTab = activeTab === "submitted"
-      ? s.status === "submitted" || s.status === "pending"
-      : s.status === activeTab;
-    const term = search.toLowerCase();
-    const matchSearch =
-      search === "" ||
-      s.profiles?.full_name?.toLowerCase().includes(term) ||
-      s.profiles?.email?.toLowerCase().includes(term) ||
-      s.tasks?.title?.toLowerCase().includes(term);
-    return matchTab && matchSearch;
+    let matchTab: boolean;
+    if (activeTab === "submitted") {
+      matchTab = s.status === "submitted" || s.status === "pending";
+    } else if (activeTab === "rejected") {
+      // "Rejected" tab includes both final rejections and retry-allowed rejections
+      matchTab = s.status === "rejected" || s.status === "resubmit_requested";
+    } else {
+      matchTab = s.status === activeTab;
+    }
+    if (!matchTab) return false;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      s.profiles?.full_name?.toLowerCase().includes(q) ||
+      s.profiles?.email?.toLowerCase().includes(q) ||
+      s.tasks?.title?.toLowerCase().includes(q)
+    );
   });
 
-  const pendingCount   = submissions.filter((s) => s.status === "submitted" || s.status === "pending").length;
-  const resubmitCount  = submissions.filter((s) => s.status === "resubmit_requested").length;
-  const pendingFiltered = filtered.filter((s) => s.status === "submitted" || s.status === "pending");
+  const pendingCount  = submissions.filter((s) => s.status === "submitted" || s.status === "pending").length;
+  const pendingFiltered = filtered.filter(isPending);
   const allPendingSelected = pendingFiltered.length > 0 && pendingFiltered.every((s) => selected.has(s.id));
 
   function toggleSelect(id: string) {
@@ -182,22 +191,11 @@ export default function AdminSubmissionsPage() {
   }
   function toggleSelectAll() {
     if (allPendingSelected) {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        pendingFiltered.forEach((s) => next.delete(s.id));
-        return next;
-      });
+      setSelected((prev) => { const next = new Set(prev); pendingFiltered.forEach((s) => next.delete(s.id)); return next; });
     } else {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        pendingFiltered.forEach((s) => next.add(s.id));
-        return next;
-      });
+      setSelected((prev) => { const next = new Set(prev); pendingFiltered.forEach((s) => next.add(s.id)); return next; });
     }
   }
-
-  const isPendingReview = (s: Submission) =>
-    s.status === "submitted" || s.status === "pending";
 
   return (
     <div className="space-y-6">
@@ -233,11 +231,6 @@ export default function AdminSubmissionsPage() {
                 {pendingCount}
               </span>
             )}
-            {tab === "resubmit_requested" && resubmitCount > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold px-1">
-                {resubmitCount}
-              </span>
-            )}
           </button>
         ))}
       </div>
@@ -256,12 +249,7 @@ export default function AdminSubmissionsPage() {
         </div>
         {activeTab === "submitted" && pendingFiltered.length > 0 && (
           <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={allPendingSelected}
-              onChange={toggleSelectAll}
-              className="accent-[var(--brand-500)]"
-            />
+            <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} className="accent-[var(--brand-500)]" />
             Select all
           </label>
         )}
@@ -289,13 +277,8 @@ export default function AdminSubmissionsPage() {
               {/* Header */}
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
-                  {isPendingReview(sub) && (
-                    <input
-                      type="checkbox"
-                      checked={selected.has(sub.id)}
-                      onChange={() => toggleSelect(sub.id)}
-                      className="accent-[var(--brand-500)] mt-1 flex-shrink-0"
-                    />
+                  {isPending(sub) && (
+                    <input type="checkbox" checked={selected.has(sub.id)} onChange={() => toggleSelect(sub.id)} className="accent-[var(--brand-500)] mt-1 flex-shrink-0" />
                   )}
                   <Avatar name={sub.profiles?.full_name ?? "?"} size="sm" />
                   <div>
@@ -305,7 +288,7 @@ export default function AdminSubmissionsPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_BADGE[sub.status] ?? ""}`}>
-                    {sub.status === "submitted" ? "Pending" : sub.status === "resubmit_requested" ? "Needs Resubmission" : sub.status.replace("_", " ")}
+                    {statusLabel(sub.status)}
                   </span>
                   <span className="text-xs text-[var(--text-muted)]">
                     {new Date(sub.submitted_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
@@ -335,20 +318,15 @@ export default function AdminSubmissionsPage() {
               {sub.files && sub.files.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {sub.files.map((f, i) => (
-                    <a
-                      key={i}
-                      href={f.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--brand-500)] hover:bg-[var(--surface-card)] transition-colors"
-                    >
+                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--brand-500)] hover:bg-[var(--surface-card)] transition-colors">
                       <ExternalLink className="h-3 w-3" /> {f.name}
                     </a>
                   ))}
                 </div>
               )}
 
-              {/* Existing feedback */}
+              {/* Feedback */}
               {sub.feedback && (
                 <div className={`rounded-lg p-3 ${
                   sub.status === "resubmit_requested"
@@ -356,7 +334,7 @@ export default function AdminSubmissionsPage() {
                     : "bg-red-500/10 border border-red-500/20"
                 }`}>
                   <p className={`text-xs font-semibold mb-1 ${sub.status === "resubmit_requested" ? "text-orange-400" : "text-red-400"}`}>
-                    {sub.status === "resubmit_requested" ? "Requested Changes" : "Admin Feedback"}
+                    {sub.status === "resubmit_requested" ? "Feedback (Retry Allowed)" : "Rejection Reason"}
                   </p>
                   <p className={`text-sm ${sub.status === "resubmit_requested" ? "text-orange-300" : "text-red-300"}`}>{sub.feedback}</p>
                 </div>
@@ -369,15 +347,15 @@ export default function AdminSubmissionsPage() {
                 </div>
               )}
 
-              {/* Review controls */}
-              {isPendingReview(sub) && (
+              {/* Review controls (pending submissions only) */}
+              {isPending(sub) && (
                 <div className="border-t border-[var(--border-default)] pt-4 space-y-3">
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={feedbacks[sub.id] ?? ""}
                       onChange={(e) => setFeedbacks((prev) => ({ ...prev, [sub.id]: e.target.value }))}
-                      placeholder="Feedback (optional on approve)…"
+                      placeholder="Optional feedback for approval…"
                       className="flex-1 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                     />
                     <input
@@ -388,20 +366,17 @@ export default function AdminSubmissionsPage() {
                       className="w-24 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                     />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button size="sm" disabled={reviewing === sub.id} onClick={() => review(sub.id, "approve")}>
-                      {reviewing === sub.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Approve</>}
-                    </Button>
-                    <Button variant="destructive" size="sm" disabled={reviewing === sub.id} onClick={() => review(sub.id, "reject")}>
-                      {reviewing === sub.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><XCircle className="h-4 w-4" /> Reject</>}
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={approving === sub.id} onClick={() => approve(sub.id)}>
+                      {approving === sub.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Approve</>}
                     </Button>
                     <Button
-                      variant="secondary"
+                      variant="destructive"
                       size="sm"
-                      disabled={reviewing === sub.id}
-                      onClick={() => { setResubmitModal(sub.id); setResubmitReason(""); }}
+                      disabled={approving === sub.id}
+                      onClick={() => { setRejectModal(sub.id); setRejectReason(""); }}
                     >
-                      <RefreshCw className="h-4 w-4" /> Request Resubmission
+                      <XCircle className="h-4 w-4" /> Reject
                     </Button>
                   </div>
                 </div>
@@ -411,51 +386,74 @@ export default function AdminSubmissionsPage() {
         </div>
       )}
 
-      {/* Resubmission Modal */}
-      {resubmitModal && (
+      {/* Reject Modal */}
+      {rejectModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) { setResubmitModal(null); setResubmitReason(""); } }}
+          onClick={(e) => { if (e.target === e.currentTarget && !rejecting) { setRejectModal(null); setRejectReason(""); } }}
         >
-          <div className="w-full max-w-md rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-2xl p-6 space-y-4">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-2xl p-6 space-y-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Request Resubmission</h2>
-                <p className="text-sm text-[var(--text-muted)] mt-0.5">Tell the contributor what needs to be fixed.</p>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Reject Submission</h2>
+                <p className="text-sm text-[var(--text-muted)] mt-0.5">Provide a reason, then choose how to reject.</p>
               </div>
               <button
-                onClick={() => { setResubmitModal(null); setResubmitReason(""); }}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors"
+                onClick={() => { if (!rejecting) { setRejectModal(null); setRejectReason(""); } }}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] transition-colors disabled:opacity-50"
+                disabled={rejecting}
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-[var(--text-primary)]">What needs to be fixed?</label>
+              <label className="text-sm font-semibold text-[var(--text-primary)]">Rejection reason <span className="text-red-400">*</span></label>
               <textarea
-                value={resubmitReason}
-                onChange={(e) => setResubmitReason(e.target.value)}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
                 rows={4}
-                placeholder="e.g. Your audio quality is too low. Please re-record in a quieter environment with better microphone."
+                placeholder="Explain what was wrong with the submission…"
                 className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] resize-none"
                 autoFocus
+                disabled={rejecting}
               />
             </div>
 
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" onClick={() => { setResubmitModal(null); setResubmitReason(""); }} disabled={resubmitting}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => requestResubmit(resubmitModal)}
-                disabled={resubmitting || !resubmitReason.trim()}
+            {/* Two rejection options */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => rejectWithOption(true)}
+                disabled={rejecting || !rejectReason.trim()}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
               >
-                {resubmitting
-                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
-                  : <><RefreshCw className="h-4 w-4" /> Send Request</>}
-              </Button>
+                {rejecting
+                  ? <Loader2 className="h-5 w-5 text-orange-400 animate-spin" />
+                  : <RefreshCw className="h-5 w-5 text-orange-400" />}
+                <div>
+                  <p className="text-sm font-bold text-orange-400">Allow Retry</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">Contributor can resubmit after fixing issues</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => rejectWithOption(false)}
+                disabled={rejecting || !rejectReason.trim()}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+              >
+                {rejecting
+                  ? <Loader2 className="h-5 w-5 text-red-400 animate-spin" />
+                  : <XCircle className="h-5 w-5 text-red-400" />}
+                <div>
+                  <p className="text-sm font-bold text-red-400">Final Rejection</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">Permanently rejected, no resubmission</p>
+                </div>
+              </button>
             </div>
+
+            <Button variant="ghost" className="w-full" onClick={() => { setRejectModal(null); setRejectReason(""); }} disabled={rejecting}>
+              Cancel
+            </Button>
           </div>
         </div>
       )}

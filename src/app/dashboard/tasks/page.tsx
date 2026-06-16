@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ClipboardList, RefreshCw, RotateCcw } from "lucide-react";
+import { ClipboardList, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -175,15 +175,6 @@ export default function TasksPage() {
                   <Button size="sm" asChild>
                     <Link href={`/dashboard/tasks/${s.task_id}/work`}>
                       <RefreshCw className="h-3.5 w-3.5" /> Resubmit →
-                    </Link>
-                  </Button>
-                </div>
-              )}
-              {s.status === "rejected" && (
-                <div>
-                  <Button size="sm" variant="secondary" asChild>
-                    <Link href={`/dashboard/tasks/${s.task_id}/work`}>
-                      <RotateCcw className="h-3.5 w-3.5" /> Retry Task →
                     </Link>
                   </Button>
                 </div>
