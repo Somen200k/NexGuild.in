@@ -5,6 +5,7 @@ interface NexGuildLogoProps {
   variant?: "navbar" | "landing" | "footer";
   className?: string;
   href?: string;
+  textColor?: string;
 }
 
 export function NexGuildLogo({
@@ -12,6 +13,7 @@ export function NexGuildLogo({
   variant = "navbar",
   className,
   href = "/",
+  textColor = "#ffffff",
 }: NexGuildLogoProps) {
   const accent = theme === "teal" ? "#14b8a6" : "#F59E0B";
 
@@ -41,7 +43,7 @@ export function NexGuildLogo({
             <line x1="-10" y1="4" x2="-13" y2="5" stroke={accent} strokeWidth="1" opacity="0.4"/>
             <line x1="10" y1="4" x2="13" y2="5" stroke={accent} strokeWidth="1" opacity="0.4"/>
           </g>
-          <text x="90" y="78" textAnchor="middle" fontFamily="Arial, sans-serif" fontWeight="900" fontSize="26" fill="#ffffff">
+          <text x="90" y="78" textAnchor="middle" fontFamily="Arial, sans-serif" fontWeight="900" fontSize="26" fill={textColor}>
             Nex<tspan fill={accent}>Guild</tspan>
           </text>
         </svg>
