@@ -132,10 +132,13 @@ export function Elevated() {
         .elev-d4 { animation-delay: 380ms; }
       `}} />
 
-      {/* Logo */}
-      <div className="absolute top-7 left-1/2 -translate-x-1/2 z-50 elev-up pointer-events-none">
+      {/* Logo — white logo inverted to dark for light bg */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 elev-up pointer-events-none"
+        style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+          border: '1px solid rgba(0,0,0,0.06)', borderRadius: '999px', padding: '6px 16px',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
         <img src="/__mockup/images/nexguild_logo_final.png" alt="NexGuild"
-          style={{ height: '34px', width: 'auto', filter: 'brightness(0) saturate(100%) invert(10%) sepia(30%) saturate(400%) hue-rotate(10deg)' }} />
+          style={{ height: '28px', width: 'auto', display: 'block' }} />
       </div>
 
       {/* Divider */}
@@ -151,35 +154,40 @@ export function Elevated() {
       </div>
 
       {/* Left — Organizations (Gold) */}
-      <div className="relative flex-1 flex items-center justify-center p-8 md:p-20 border-b md:border-b-0 border-black/5 elev-panel-gold">
+      <div className="relative flex-1 flex items-center justify-center border-b md:border-b-0 border-black/5 elev-panel-gold"
+        style={{ padding: 'clamp(24px, 6vw, 72px)' }}>
         <WarmParticleCanvas color="#d97706" blend="multiply" />
         <div className="elev-aurora-gold"></div>
         <div className="elev-aurora-gold-top"></div>
 
-        <div className="relative z-10 max-w-md w-full flex flex-col items-start gap-7">
+        <div className="relative z-10 w-full flex flex-col items-start" style={{ maxWidth: 'clamp(280px, 38vw, 440px)', gap: 'clamp(14px, 2vh, 28px)' }}>
           <div className="inline-flex items-center gap-3 elev-up elev-d1">
             <div className="w-7 h-[1px] bg-amber-500/60"></div>
-            <span className="text-amber-700 text-[11px] font-semibold tracking-[0.12em] uppercase">For Organizations</span>
+            <span className="text-amber-700 font-semibold tracking-[0.12em] uppercase" style={{ fontSize: 'clamp(9px, 0.7vw, 11px)' }}>For Organizations</span>
           </div>
 
-          <div className="space-y-5">
-            <h1 className="elev-font-serif text-[52px] leading-[1.08] tracking-tight text-stone-900 elev-up elev-d2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(10px, 1.2vh, 18px)' }}>
+            <h1 className="elev-font-serif text-stone-900 elev-up elev-d2"
+              style={{ fontSize: 'clamp(26px, 3.6vw, 50px)', lineHeight: 1.08, letterSpacing: '-0.02em' }}>
               Scale Your <br/><i className="text-amber-500">Data Projects.</i>
             </h1>
-            <p className="text-[15px] leading-relaxed text-stone-500 max-w-[320px] elev-up elev-d3">
+            <p className="text-stone-500 elev-up elev-d3"
+              style={{ fontSize: 'clamp(12px, 1vw, 15px)', lineHeight: 1.7, maxWidth: '320px' }}>
               Access an elastic workforce of trained contributors to label, transcribe, and annotate your datasets with precision.
             </p>
           </div>
 
-          <div className="flex items-center gap-6 elev-up elev-d4 mt-2">
-            <button className="elev-btn-gold px-7 py-3.5 rounded-full font-medium text-sm tracking-wide flex items-center gap-2.5 group">
+          <div className="flex items-center gap-5 elev-up elev-d4">
+            <button className="elev-btn-gold rounded-full font-medium tracking-wide flex items-center gap-2.5 group"
+              style={{ padding: 'clamp(10px, 1vh, 14px) clamp(18px, 2vw, 28px)', fontSize: 'clamp(11px, 0.85vw, 14px)' }}>
               Explore Services
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
                 strokeLinecap="round" strokeLinejoin="round" className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
                 <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
               </svg>
             </button>
-            <a href="#" className="text-sm text-stone-400 hover:text-amber-700 transition-colors flex items-center gap-1.5 group">
+            <a href="#" className="text-stone-400 hover:text-amber-700 transition-colors flex items-center gap-1.5 group"
+              style={{ fontSize: 'clamp(11px, 0.85vw, 13px)' }}>
               How it works <span className="group-hover:translate-x-0.5 transition-transform inline-block">→</span>
             </a>
           </div>
@@ -187,35 +195,40 @@ export function Elevated() {
       </div>
 
       {/* Right — Contributors (Teal) */}
-      <div className="relative flex-1 flex items-center justify-center p-8 md:p-20 elev-panel-teal">
+      <div className="relative flex-1 flex items-center justify-center elev-panel-teal"
+        style={{ padding: 'clamp(24px, 6vw, 72px)' }}>
         <WarmParticleCanvas color="#0d9488" blend="multiply" />
         <div className="elev-aurora-teal"></div>
         <div className="elev-aurora-teal-top"></div>
 
-        <div className="relative z-10 max-w-md w-full flex flex-col items-start gap-7">
+        <div className="relative z-10 w-full flex flex-col items-start" style={{ maxWidth: 'clamp(280px, 38vw, 440px)', gap: 'clamp(14px, 2vh, 28px)' }}>
           <div className="inline-flex items-center gap-3 elev-up elev-d1">
             <div className="w-7 h-[1px] bg-teal-500/60"></div>
-            <span className="text-teal-700 text-[11px] font-semibold tracking-[0.12em] uppercase">For Contributors</span>
+            <span className="text-teal-700 font-semibold tracking-[0.12em] uppercase" style={{ fontSize: 'clamp(9px, 0.7vw, 11px)' }}>For Contributors</span>
           </div>
 
-          <div className="space-y-5">
-            <h1 className="elev-font-serif text-[52px] leading-[1.08] tracking-tight text-stone-900 elev-up elev-d2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(10px, 1.2vh, 18px)' }}>
+            <h1 className="elev-font-serif text-stone-900 elev-up elev-d2"
+              style={{ fontSize: 'clamp(26px, 3.6vw, 50px)', lineHeight: 1.08, letterSpacing: '-0.02em' }}>
               Turn Free Time <br/><i className="text-teal-500">Into Real Money.</i>
             </h1>
-            <p className="text-[15px] leading-relaxed text-stone-500 max-w-[320px] elev-up elev-d3">
+            <p className="text-stone-500 elev-up elev-d3"
+              style={{ fontSize: 'clamp(12px, 1vw, 15px)', lineHeight: 1.7, maxWidth: '320px' }}>
               Complete simple AI training tasks from anywhere. Earn NexCoins and redeem them for premium gift vouchers.
             </p>
           </div>
 
-          <div className="flex items-center gap-6 elev-up elev-d4 mt-2">
-            <button className="elev-btn-teal px-7 py-3.5 rounded-full font-medium text-sm tracking-wide flex items-center gap-2.5 group">
+          <div className="flex items-center gap-5 elev-up elev-d4">
+            <button className="elev-btn-teal rounded-full font-medium tracking-wide flex items-center gap-2.5 group"
+              style={{ padding: 'clamp(10px, 1vh, 14px) clamp(18px, 2vw, 28px)', fontSize: 'clamp(11px, 0.85vw, 14px)' }}>
               Start Earning
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
                 strokeLinecap="round" strokeLinejoin="round" className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
                 <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
               </svg>
             </button>
-            <a href="#" className="text-sm text-stone-400 hover:text-teal-700 transition-colors flex items-center gap-1.5 group">
+            <a href="#" className="text-stone-400 hover:text-teal-700 transition-colors flex items-center gap-1.5 group"
+              style={{ fontSize: 'clamp(11px, 0.85vw, 13px)' }}>
               How it works <span className="group-hover:translate-x-0.5 transition-transform inline-block">→</span>
             </a>
           </div>
