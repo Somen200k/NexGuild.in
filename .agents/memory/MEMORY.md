@@ -1,0 +1,1 @@
+- [NexGuild API server layout](nexguild-api-layout.md) — all 27 routes live in 5 Express routers; env vars SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required at runtime
