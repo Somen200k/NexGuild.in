@@ -132,13 +132,13 @@ export function Elevated() {
         .elev-d4 { animation-delay: 380ms; }
       `}} />
 
-      {/* Logo — white logo inverted to dark for light bg */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 elev-up pointer-events-none"
-        style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-          border: '1px solid rgba(0,0,0,0.06)', borderRadius: '999px', padding: '6px 16px',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+      {/* Logo */}
+      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-50 elev-up pointer-events-none"
+        style={{ background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+          border: '1px solid rgba(0,0,0,0.07)', borderRadius: '999px', padding: '8px 22px',
+          boxShadow: '0 4px 18px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,1)' }}>
         <img src="/__mockup/images/nexguild_logo_final.png" alt="NexGuild"
-          style={{ height: '28px', width: 'auto', display: 'block' }} />
+          style={{ height: '44px', width: 'auto', display: 'block' }} />
       </div>
 
       {/* Divider */}
